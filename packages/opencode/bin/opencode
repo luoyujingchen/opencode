@@ -17,7 +17,7 @@ function run(target) {
   process.exit(code)
 }
 
-const envPath = process.env.OPENCODE_BIN_PATH
+const envPath = process.env.FANG_BIN_PATH || process.env.OPENCODE_BIN_PATH
 if (envPath) {
   run(envPath)
 }
@@ -26,9 +26,14 @@ const scriptPath = fs.realpathSync(__filename)
 const scriptDir = path.dirname(scriptPath)
 
 //
-const cached = path.join(scriptDir, ".opencode")
+const cached = path.join(scriptDir, ".fangcode")
 if (fs.existsSync(cached)) {
   run(cached)
+} else {
+  const legacy = path.join(scriptDir, ".opencode")
+  if (fs.existsSync(legacy)) {
+    run(legacy)
+  }
 }
 
 const platformMap = {
@@ -50,8 +55,8 @@ let arch = archMap[os.arch()]
 if (!arch) {
   arch = os.arch()
 }
-const base = "opencode-" + platform + "-" + arch
-const binary = platform === "windows" ? "opencode.exe" : "opencode"
+const base = "fangcode-" + platform + "-" + arch
+const binary = platform === "windows" ? "fangcode.exe" : "fangcode"
 
 function supportsAvx2() {
   if (arch !== "x64") return false

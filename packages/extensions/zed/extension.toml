@@ -1,36 +1,36 @@
-id = "opencode"
-name = "OpenCode"
+id = "fangcode"
+name = "FangCode"
 description = "The open source coding agent."
 version = "1.3.3"
 schema_version = 1
 authors = ["Anomaly"]
-repository = "https://github.com/anomalyco/opencode"
+repository = "https://github.com/AnomalyFi/fangcode"
 
-[agent_servers.opencode]
-name = "OpenCode"
+[agent_servers.fangcode]
+name = "FangCode"
 icon = "./icons/opencode.svg"
 
-[agent_servers.opencode.targets.darwin-aarch64]
-archive = "https://github.com/anomalyco/opencode/releases/download/v1.3.3/opencode-darwin-arm64.zip"
-cmd = "./opencode"
+[agent_servers.fangcode.targets.darwin-aarch64]
+archive = "https://github.com/AnomalyFi/fangcode/releases/download/v1.3.3/fangcode-darwin-arm64.zip"
+cmd = "./fangcode"
 args = ["acp"]
 
-[agent_servers.opencode.targets.darwin-x86_64]
-archive = "https://github.com/anomalyco/opencode/releases/download/v1.3.3/opencode-darwin-x64.zip"
-cmd = "./opencode"
+[agent_servers.fangcode.targets.darwin-x86_64]
+archive = "https://github.com/AnomalyFi/fangcode/releases/download/v1.3.3/fangcode-darwin-x64.zip"
+cmd = "./fangcode"
 args = ["acp"]
 
-[agent_servers.opencode.targets.linux-aarch64]
-archive = "https://github.com/anomalyco/opencode/releases/download/v1.3.3/opencode-linux-arm64.tar.gz"
-cmd = "./opencode"
+[agent_servers.fangcode.targets.linux-aarch64]
+archive = "https://github.com/AnomalyFi/fangcode/releases/download/v1.3.3/fangcode-linux-arm64.tar.gz"
+cmd = "./fangcode"
 args = ["acp"]
 
-[agent_servers.opencode.targets.linux-x86_64]
-archive = "https://github.com/anomalyco/opencode/releases/download/v1.3.3/opencode-linux-x64.tar.gz"
-cmd = "./opencode"
+[agent_servers.fangcode.targets.linux-x86_64]
+archive = "https://github.com/AnomalyFi/fangcode/releases/download/v1.3.3/fangcode-linux-x64.tar.gz"
+cmd = "./fangcode"
 args = ["acp"]
 
-[agent_servers.opencode.targets.windows-x86_64]
-archive = "https://github.com/anomalyco/opencode/releases/download/v1.3.3/opencode-windows-x64.zip"
-cmd = "./opencode.exe"
+[agent_servers.fangcode.targets.windows-x86_64]
+archive = "https://github.com/AnomalyFi/fangcode/releases/download/v1.3.3/fangcode-windows-x64.zip"
+cmd = "./fangcode.exe"
 args = ["acp"]

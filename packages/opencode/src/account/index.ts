@@ -118,7 +118,7 @@ class TokenRefreshRequest extends Schema.Class<TokenRefreshRequest>("TokenRefres
   client_id: Schema.String,
 }) {}
 
-const clientId = "opencode-cli"
+const clientId = "fangcode-cli"
 
 const mapAccountServiceError =
   (message = "Account service operation failed") =>

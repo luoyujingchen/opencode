@@ -52,16 +52,20 @@ export namespace Config {
   function systemManagedConfigDir(): string {
     switch (process.platform) {
       case "darwin":
-        return "/Library/Application Support/opencode"
+        return "/Library/Application Support/fangcode"
       case "win32":
-        return path.join(process.env.ProgramData || "C:\\ProgramData", "opencode")
+        return path.join(process.env.ProgramData || "C:\\ProgramData", "fangcode")
       default:
-        return "/etc/opencode"
+        return "/etc/fangcode"
     }
   }
 
   export function managedConfigDir() {
-    return process.env.OPENCODE_TEST_MANAGED_CONFIG_DIR || systemManagedConfigDir()
+    return (
+      process.env.FANG_TEST_MANAGED_CONFIG_DIR ||
+      process.env.OPENCODE_TEST_MANAGED_CONFIG_DIR ||
+      systemManagedConfigDir()
+    )
   }
 
   const managedDir = managedConfigDir()
@@ -208,7 +212,14 @@ export namespace Config {
       })
       if (!md) continue
 
-      const patterns = ["/.opencode/command/", "/.opencode/commands/", "/command/", "/commands/"]
+      const patterns = [
+        "/.fangcode/command/",
+        "/.fangcode/commands/",
+        "/.opencode/command/",
+        "/.opencode/commands/",
+        "/command/",
+        "/commands/",
+      ]
       const file = rel(item, patterns) ?? path.basename(item)
       const name = trim(file)
 
@@ -247,7 +258,14 @@ export namespace Config {
       })
       if (!md) continue
 
-      const patterns = ["/.opencode/agent/", "/.opencode/agents/", "/agent/", "/agents/"]
+      const patterns = [
+        "/.fangcode/agent/",
+        "/.fangcode/agents/",
+        "/.opencode/agent/",
+        "/.opencode/agents/",
+        "/agent/",
+        "/agents/",
+      ]
       const file = rel(item, patterns) ?? path.basename(item)
       const agentName = trim(file)
 
@@ -769,7 +787,7 @@ export namespace Config {
       port: z.number().int().positive().optional().describe("Port to listen on"),
       hostname: z.string().optional().describe("Hostname to listen on"),
       mdns: z.boolean().optional().describe("Enable mDNS service discovery"),
-      mdnsDomain: z.string().optional().describe("Custom domain name for mDNS service (default: opencode.local)"),
+      mdnsDomain: z.string().optional().describe("Custom domain name for mDNS service (default: fangcode.local)"),
       cors: z.array(z.string()).optional().describe("Additional domains to allow for CORS"),
     })
     .strict()
@@ -847,11 +865,11 @@ export namespace Config {
     .object({
       $schema: z.string().optional().describe("JSON schema reference for configuration validation"),
       logLevel: Log.Level.optional().describe("Log level"),
-      server: Server.optional().describe("Server configuration for opencode serve and web commands"),
+      server: Server.optional().describe("Server configuration for fangcode serve and web commands"),
       command: z
         .record(z.string(), Command)
         .optional()
-        .describe("Command configuration, see https://opencode.ai/docs/commands"),
+        .describe("Command configuration, see https://fangcode.ai/docs/commands"),
       skills: Skills.optional().describe("Additional skill folder paths"),
       watcher: z
         .object({
@@ -923,7 +941,7 @@ export namespace Config {
         })
         .catchall(Agent)
         .optional()
-        .describe("Agent configuration, see https://opencode.ai/docs/agents"),
+        .describe("Agent configuration, see https://fangcode.ai/docs/agents"),
       provider: z
         .record(z.string(), Provider)
         .optional()
@@ -1061,8 +1079,8 @@ export namespace Config {
   export class Service extends ServiceMap.Service<Service, Interface>()("@opencode/Config") {}
 
   function globalConfigFile() {
-    const candidates = ["opencode.jsonc", "opencode.json", "config.json"].map((file) =>
-      path.join(Global.Path.config, file),
+    const candidates = ["fangcode.jsonc", "fangcode.json", "opencode.jsonc", "opencode.json", "config.json"].map(
+      (file) => path.join(Global.Path.config, file),
     )
     for (const file of candidates) {
       if (existsSync(file)) return file
@@ -1182,11 +1200,6 @@ export namespace Config {
 
           const parsed = Info.safeParse(normalized)
           if (parsed.success) {
-            if (!parsed.data.$schema && isFile) {
-              parsed.data.$schema = "https://opencode.ai/config.json"
-              const updated = original.replace(/^\s*\{/, '{\n  "$schema": "https://opencode.ai/config.json",')
-              yield* fs.writeFileString(options.path, updated).pipe(Effect.catch(() => Effect.void))
-            }
             const data = parsed.data
             if (data.plugin && isFile) {
               for (let i = 0; i < data.plugin.length; i++) {
@@ -1226,6 +1239,8 @@ export namespace Config {
             mergeDeep(yield* loadFile(path.join(Global.Path.config, "config.json"))),
             mergeDeep(yield* loadFile(path.join(Global.Path.config, "opencode.json"))),
             mergeDeep(yield* loadFile(path.join(Global.Path.config, "opencode.jsonc"))),
+            mergeDeep(yield* loadFile(path.join(Global.Path.config, "fangcode.json"))),
+            mergeDeep(yield* loadFile(path.join(Global.Path.config, "fangcode.jsonc"))),
           )
 
           const legacy = path.join(Global.Path.config, "config")
@@ -1235,7 +1250,6 @@ export namespace Config {
                 .then(async (mod) => {
                   const { provider, model, ...rest } = mod.default
                   if (provider && model) result.model = `${provider}/${model}`
-                  result["$schema"] = "https://opencode.ai/config.json"
                   result = mergeDeep(result, rest)
                   await fsNode.writeFile(path.join(Global.Path.config, "config.json"), JSON.stringify(result, null, 2))
                   await fsNode.unlink(legacy)
@@ -1269,19 +1283,18 @@ export namespace Config {
             if (value.type === "wellknown") {
               const url = key.replace(/\/+$/, "")
               process.env[value.key] = value.token
-              log.debug("fetching remote config", { url: `${url}/.well-known/opencode` })
-              const response = yield* Effect.promise(() => fetch(`${url}/.well-known/opencode`))
+              log.debug("fetching remote config", { url: `${url}/.well-known/fangcode` })
+              const response = yield* Effect.promise(() => fetch(`${url}/.well-known/fangcode`))
               if (!response.ok) {
                 throw new Error(`failed to fetch remote config from ${url}: ${response.status}`)
               }
               const wellknown = (yield* Effect.promise(() => response.json())) as any
               const remoteConfig = wellknown.config ?? {}
-              if (!remoteConfig.$schema) remoteConfig.$schema = "https://opencode.ai/config.json"
               result = mergeConfigConcatArrays(
                 result,
                 yield* loadConfig(JSON.stringify(remoteConfig), {
-                  dir: path.dirname(`${url}/.well-known/opencode`),
-                  source: `${url}/.well-known/opencode`,
+                  dir: path.dirname(`${url}/.well-known/fangcode`),
+                  source: `${url}/.well-known/fangcode`,
                 }),
               )
               log.debug("loaded remote config from well-known", { url })
@@ -1290,12 +1303,18 @@ export namespace Config {
 
           result = mergeConfigConcatArrays(result, yield* getGlobal())
 
-          if (Flag.OPENCODE_CONFIG) {
-            result = mergeConfigConcatArrays(result, yield* loadFile(Flag.OPENCODE_CONFIG))
-            log.debug("loaded custom config", { path: Flag.OPENCODE_CONFIG })
+          const customConfig = Flag.FANG_CONFIG || Flag.OPENCODE_CONFIG
+          if (customConfig) {
+            result = mergeConfigConcatArrays(result, yield* loadFile(customConfig))
+            log.debug("loaded custom config", { path: customConfig })
           }
 
-          if (!Flag.OPENCODE_DISABLE_PROJECT_CONFIG) {
+          if (!Flag.OPENCODE_DISABLE_PROJECT_CONFIG && !Flag.FANG_DISABLE_PROJECT_CONFIG) {
+            for (const file of yield* Effect.promise(() =>
+              ConfigPaths.projectFiles("fangcode", ctx.directory, ctx.worktree),
+            )) {
+              result = mergeConfigConcatArrays(result, yield* loadFile(file))
+            }
             for (const file of yield* Effect.promise(() =>
               ConfigPaths.projectFiles("opencode", ctx.directory, ctx.worktree),
             )) {
@@ -1309,15 +1328,20 @@ export namespace Config {
 
           const directories = yield* Effect.promise(() => ConfigPaths.directories(ctx.directory, ctx.worktree))
 
-          if (Flag.OPENCODE_CONFIG_DIR) {
-            log.debug("loading config from OPENCODE_CONFIG_DIR", { path: Flag.OPENCODE_CONFIG_DIR })
+          if (Flag.FANG_CONFIG_DIR || Flag.OPENCODE_CONFIG_DIR) {
+            log.debug("loading config from config dir", { path: Flag.FANG_CONFIG_DIR || Flag.OPENCODE_CONFIG_DIR })
           }
 
           const deps: Promise<void>[] = []
 
           for (const dir of unique(directories)) {
-            if (dir.endsWith(".opencode") || dir === Flag.OPENCODE_CONFIG_DIR) {
-              for (const file of ["opencode.jsonc", "opencode.json"]) {
+            if (
+              dir.endsWith(".fangcode") ||
+              dir.endsWith(".opencode") ||
+              dir === Flag.OPENCODE_CONFIG_DIR ||
+              dir === Flag.FANG_CONFIG_DIR
+            ) {
+              for (const file of ["fangcode.jsonc", "fangcode.json", "opencode.jsonc", "opencode.json"]) {
                 log.debug(`loading config from ${path.join(dir, file)}`)
                 result = mergeConfigConcatArrays(result, yield* loadFile(path.join(dir, file)))
                 result.agent ??= {}
@@ -1339,15 +1363,16 @@ export namespace Config {
             result.plugin.push(...(yield* Effect.promise(() => loadPlugin(dir))))
           }
 
-          if (process.env.OPENCODE_CONFIG_CONTENT) {
+          if (process.env.FANG_CONFIG_CONTENT || process.env.OPENCODE_CONFIG_CONTENT) {
+            const content = process.env.FANG_CONFIG_CONTENT || process.env.OPENCODE_CONFIG_CONTENT!
             result = mergeConfigConcatArrays(
               result,
-              yield* loadConfig(process.env.OPENCODE_CONFIG_CONTENT, {
+              yield* loadConfig(content, {
                 dir: ctx.directory,
-                source: "OPENCODE_CONFIG_CONTENT",
+                source: "CONFIG_CONTENT",
               }),
             )
-            log.debug("loaded custom config from OPENCODE_CONFIG_CONTENT")
+            log.debug("loaded custom config from CONFIG_CONTENT")
           }
 
           const active = Option.getOrUndefined(yield* accountSvc.active().pipe(Effect.orDie))
@@ -1359,7 +1384,9 @@ export namespace Config {
               )
               const token = Option.getOrUndefined(tokenOpt)
               if (token) {
+                process.env["FANG_CONSOLE_TOKEN"] = token
                 process.env["OPENCODE_CONSOLE_TOKEN"] = token
+                Env.set("FANG_CONSOLE_TOKEN", token)
                 Env.set("OPENCODE_CONSOLE_TOKEN", token)
               }
 
@@ -1384,7 +1411,7 @@ export namespace Config {
           }
 
           if (existsSync(managedDir)) {
-            for (const file of ["opencode.jsonc", "opencode.json"]) {
+            for (const file of ["fangcode.jsonc", "fangcode.json", "opencode.jsonc", "opencode.json"]) {
               result = mergeConfigConcatArrays(result, yield* loadFile(path.join(managedDir, file)))
             }
           }
@@ -1398,8 +1425,9 @@ export namespace Config {
             })
           }
 
-          if (Flag.OPENCODE_PERMISSION) {
-            result.permission = mergeDeep(result.permission ?? {}, JSON.parse(Flag.OPENCODE_PERMISSION))
+          const permission = Flag.FANG_PERMISSION || Flag.OPENCODE_PERMISSION
+          if (permission) {
+            result.permission = mergeDeep(result.permission ?? {}, JSON.parse(permission))
           }
 
           if (result.tools) {
@@ -1421,10 +1449,10 @@ export namespace Config {
             result.share = "auto"
           }
 
-          if (Flag.OPENCODE_DISABLE_AUTOCOMPACT) {
+          if (Flag.FANG_DISABLE_AUTOCOMPACT || Flag.OPENCODE_DISABLE_AUTOCOMPACT) {
             result.compaction = { ...result.compaction, auto: false }
           }
-          if (Flag.OPENCODE_DISABLE_PRUNE) {
+          if (Flag.FANG_DISABLE_PRUNE || Flag.OPENCODE_DISABLE_PRUNE) {
             result.compaction = { ...result.compaction, prune: false }
           }
 

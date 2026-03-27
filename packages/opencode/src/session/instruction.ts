@@ -19,8 +19,9 @@ const FILES = [
 
 function globalFiles() {
   const files = []
-  if (Flag.OPENCODE_CONFIG_DIR) {
-    files.push(path.join(Flag.OPENCODE_CONFIG_DIR, "AGENTS.md"))
+  const configDir = Flag.FANG_CONFIG_DIR || Flag.OPENCODE_CONFIG_DIR
+  if (configDir) {
+    files.push(path.join(configDir, "AGENTS.md"))
   }
   files.push(path.join(Global.Path.config, "AGENTS.md"))
   if (!Flag.OPENCODE_DISABLE_CLAUDE_CODE_PROMPT) {
@@ -30,16 +31,15 @@ function globalFiles() {
 }
 
 async function resolveRelative(instruction: string): Promise<string[]> {
-  if (!Flag.OPENCODE_DISABLE_PROJECT_CONFIG) {
+  if (!Flag.OPENCODE_DISABLE_PROJECT_CONFIG && !Flag.FANG_DISABLE_PROJECT_CONFIG) {
     return Filesystem.globUp(instruction, Instance.directory, Instance.worktree).catch(() => [])
   }
-  if (!Flag.OPENCODE_CONFIG_DIR) {
-    log.warn(
-      `Skipping relative instruction "${instruction}" - no OPENCODE_CONFIG_DIR set while project config is disabled`,
-    )
+  const configDir = Flag.FANG_CONFIG_DIR || Flag.OPENCODE_CONFIG_DIR
+  if (!configDir) {
+    log.warn(`Skipping relative instruction "${instruction}" - no CONFIG_DIR set while project config is disabled`)
     return []
   }
-  return Filesystem.globUp(instruction, Flag.OPENCODE_CONFIG_DIR, Flag.OPENCODE_CONFIG_DIR).catch(() => [])
+  return Filesystem.globUp(instruction, configDir, configDir).catch(() => [])
 }
 
 export namespace InstructionPrompt {
@@ -73,7 +73,7 @@ export namespace InstructionPrompt {
     const config = await Config.get()
     const paths = new Set<string>()
 
-    if (!Flag.OPENCODE_DISABLE_PROJECT_CONFIG) {
+    if (!Flag.OPENCODE_DISABLE_PROJECT_CONFIG && !Flag.FANG_DISABLE_PROJECT_CONFIG) {
       for (const file of FILES) {
         const matches = await Filesystem.findUp(file, Instance.directory, Instance.worktree)
         if (matches.length > 0) {

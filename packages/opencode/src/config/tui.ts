@@ -21,22 +21,20 @@ export namespace TuiConfig {
     return mergeDeep(target, source)
   }
 
-  function customPath() {
-    return Flag.OPENCODE_TUI_CONFIG
-  }
-
   const state = Instance.state(async () => {
-    let projectFiles = Flag.OPENCODE_DISABLE_PROJECT_CONFIG
-      ? []
-      : await ConfigPaths.projectFiles("tui", Instance.directory, Instance.worktree)
+    let projectFiles =
+      Flag.OPENCODE_DISABLE_PROJECT_CONFIG || Flag.FANG_DISABLE_PROJECT_CONFIG
+        ? []
+        : await ConfigPaths.projectFiles("tui", Instance.directory, Instance.worktree)
     const directories = await ConfigPaths.directories(Instance.directory, Instance.worktree)
-    const custom = customPath()
+    const custom = Flag.FANG_TUI_CONFIG || Flag.OPENCODE_TUI_CONFIG
     const managed = Config.managedConfigDir()
     await migrateTuiConfig({ directories, custom, managed })
     // Re-compute after migration since migrateTuiConfig may have created new tui.json files
-    projectFiles = Flag.OPENCODE_DISABLE_PROJECT_CONFIG
-      ? []
-      : await ConfigPaths.projectFiles("tui", Instance.directory, Instance.worktree)
+    projectFiles =
+      Flag.OPENCODE_DISABLE_PROJECT_CONFIG || Flag.FANG_DISABLE_PROJECT_CONFIG
+        ? []
+        : await ConfigPaths.projectFiles("tui", Instance.directory, Instance.worktree)
 
     let result: Info = {}
 
@@ -54,7 +52,12 @@ export namespace TuiConfig {
     }
 
     for (const dir of unique(directories)) {
-      if (!dir.endsWith(".opencode") && dir !== Flag.OPENCODE_CONFIG_DIR) continue
+      if (
+        !(dir.endsWith(".fangcode") || dir.endsWith(".opencode")) &&
+        dir !== Flag.OPENCODE_CONFIG_DIR &&
+        dir !== Flag.FANG_CONFIG_DIR
+      )
+        continue
       for (const file of ConfigPaths.fileInDirectory(dir, "tui")) {
         result = mergeInfo(result, await loadFile(file))
       }

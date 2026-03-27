@@ -405,8 +405,8 @@ export namespace Provider {
         autoload: false,
         options: {
           headers: {
-            "HTTP-Referer": "https://opencode.ai/",
-            "X-Title": "opencode",
+            "HTTP-Referer": "https://fangcode.ai/",
+            "X-Title": "fangcode",
           },
         },
       }
@@ -416,8 +416,8 @@ export namespace Provider {
         autoload: false,
         options: {
           headers: {
-            "http-referer": "https://opencode.ai/",
-            "x-title": "opencode",
+            "http-referer": "https://fangcode.ai/",
+            "x-title": "fangcode",
           },
         },
       }
@@ -515,8 +515,8 @@ export namespace Provider {
         autoload: false,
         options: {
           headers: {
-            "HTTP-Referer": "https://opencode.ai/",
-            "X-Title": "opencode",
+            "HTTP-Referer": "https://fangcode.ai/",
+            "X-Title": "fangcode",
           },
         },
       }
@@ -535,7 +535,7 @@ export namespace Provider {
       const providerConfig = config.provider?.["gitlab"]
 
       const aiGatewayHeaders = {
-        "User-Agent": `opencode/${Installation.VERSION} gitlab-ai-provider/${GITLAB_PROVIDER_VERSION} (${os.platform()} ${os.release()}; ${os.arch()})`,
+        "User-Agent": `fangcode/${Installation.VERSION} gitlab-ai-provider/${GITLAB_PROVIDER_VERSION} (${os.platform()} ${os.release()}; ${os.arch()})`,
         "anthropic-beta": "context-1m-2025-08-07",
         ...(providerConfig?.options?.aiGatewayHeaders || {}),
       }
@@ -686,7 +686,7 @@ export namespace Provider {
       if (!apiToken) {
         throw new Error(
           "CLOUDFLARE_API_TOKEN (or CF_AIG_TOKEN) is required for Cloudflare AI Gateway. " +
-            "Set it via environment variable or run `opencode auth cloudflare-ai-gateway`.",
+            "Set it via environment variable or run `fangcode auth cloudflare-ai-gateway`.",
         )
       }
 
@@ -732,7 +732,7 @@ export namespace Provider {
         autoload: false,
         options: {
           headers: {
-            "X-Cerebras-3rd-Party-Integration": "opencode",
+            "X-Cerebras-3rd-Party-Integration": "fangcode",
           },
         },
       }
@@ -742,8 +742,8 @@ export namespace Provider {
         autoload: false,
         options: {
           headers: {
-            "HTTP-Referer": "https://opencode.ai/",
-            "X-Title": "opencode",
+            "HTTP-Referer": "https://fangcode.ai/",
+            "X-Title": "fangcode",
           },
         },
       }
@@ -836,11 +836,15 @@ export namespace Provider {
     })
   export type Info = z.infer<typeof Info>
 
+  function brand(name: string) {
+    return name.replace(/OpenCode/g, "FangCode").replace(/opencode/g, "fangcode")
+  }
+
   function fromModelsDevModel(provider: ModelsDev.Provider, model: ModelsDev.Model): Model {
     const m: Model = {
       id: ModelID.make(model.id),
       providerID: ProviderID.make(provider.id),
-      name: model.name,
+      name: brand(model.name),
       family: model.family,
       api: {
         id: model.id,
@@ -907,7 +911,7 @@ export namespace Provider {
     return {
       id: ProviderID.make(provider.id),
       source: "custom",
-      name: provider.name,
+      name: brand(provider.name),
       env: provider.env ?? [],
       options: {},
       models: mapValues(provider.models, (model) => fromModelsDevModel(provider, model)),
@@ -964,7 +968,7 @@ export namespace Provider {
       const existing = database[providerID]
       const parsed: Info = {
         id: ProviderID.make(providerID),
-        name: provider.name ?? existing?.name ?? providerID,
+        name: brand(provider.name ?? existing?.name ?? providerID),
         env: provider.env ?? existing?.env ?? [],
         options: mergeDeep(existing?.options ?? {}, provider.options ?? {}),
         source: "config",
@@ -974,7 +978,7 @@ export namespace Provider {
       for (const [modelID, model] of Object.entries(provider.models ?? {})) {
         const existingModel = parsed.models[model.id ?? modelID]
         const name = iife(() => {
-          if (model.name) return model.name
+          if (model.name) return brand(model.name)
           if (model.id && model.id !== modelID) return modelID
           return existingModel?.name ?? modelID
         })
@@ -1108,7 +1112,7 @@ export namespace Provider {
       const providerID = ProviderID.make(id)
       const partial: Partial<Info> = { source: "config" }
       if (provider.env) partial.env = provider.env
-      if (provider.name) partial.name = provider.name
+      if (provider.name) partial.name = brand(provider.name)
       if (provider.options) partial.options = provider.options
       mergeProvider(providerID, partial)
     }
