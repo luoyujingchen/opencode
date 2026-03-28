@@ -1,7 +1,7 @@
 import { execFileSync, spawn } from "node:child_process"
 import { EventEmitter } from "node:events"
-import { chmodSync, readFileSync, unlinkSync, writeFileSync } from "node:fs"
-import { tmpdir } from "node:os"
+import { chmodSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs"
+import { homedir, tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import readline from "node:readline"
 import { fileURLToPath } from "node:url"
@@ -14,6 +14,7 @@ import { store } from "./store"
 
 const CLI_INSTALL_DIR = ".fangcode/bin"
 const CLI_BINARY_NAME = "fangcode"
+const ENV_KEY = "HKCU\\Environment"
 
 export type ServerConfig = {
   hostname?: string
@@ -75,7 +76,7 @@ export async function getConfig(): Promise<Config | null> {
 
 export async function installCli(): Promise<string> {
   if (process.platform === "win32") {
-    throw new Error("CLI installation is only supported on macOS & Linux")
+    return installCliWindows()
   }
 
   const sidecar = getSidecarPath()
@@ -104,6 +105,10 @@ export async function installCli(): Promise<string> {
 
 export function syncCli() {
   if (!app.isPackaged) return
+  if (process.platform === "win32") {
+    void installCli().catch(() => undefined)
+    return
+  }
   const installPath = getCliInstallPath()
   if (!installPath) return
 
@@ -258,6 +263,129 @@ function envPrefix(env: Record<string, string>) {
 function shellEscape(input: string) {
   if (!input) return "''"
   return `'${input.replace(/'/g, `'"'"'`)}'`
+}
+
+function windowsDir() {
+  const local = process.env.LOCALAPPDATA
+  if (local) return join(local, "fangcode", "bin")
+  return join(homedir(), "AppData", "Local", "fangcode", "bin")
+}
+
+function windowsBody(exe: string) {
+  return `@echo off\r\n"${exe}" %*\r\n`
+}
+
+function npmDir() {
+  for (const cmd of ["npm.cmd", "npm"]) {
+    try {
+      const out = execFileSync(cmd, ["prefix", "-g"], {
+        encoding: "utf8",
+        windowsHide: true,
+      }).trim()
+      if (out) return out
+    } catch {}
+  }
+  const appdata = process.env.APPDATA
+  if (!appdata) return ""
+  return join(appdata, "npm")
+}
+
+function windowsDirs() {
+  const out: string[] = []
+  const list = [npmDir(), windowsDir()]
+  for (const item of list) {
+    if (!item) continue
+    if (out.some((x) => norm(x) === norm(item))) continue
+    out.push(item)
+  }
+  return out
+}
+
+function writeCmd(dir: string, exe: string) {
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+  const body = windowsBody(exe)
+  const main = join(dir, "fangcode.cmd")
+  const alt = join(dir, "fang.cmd")
+  writeFileSync(main, body, "ascii")
+  writeFileSync(alt, body, "ascii")
+  return main
+}
+
+function norm(raw: string) {
+  const val = raw.trim().replace(/^"|"$/g, "").replace(/\//g, "\\")
+  if (val.endsWith("\\") && !/^[a-zA-Z]:\\$/.test(val)) return val.slice(0, -1).toLowerCase()
+  return val.toLowerCase()
+}
+
+function split(raw: string) {
+  return raw
+    .split(";")
+    .map((x) => x.trim())
+    .filter(Boolean)
+}
+
+function parsePath(raw: string) {
+  const line = raw
+    .split(/\r?\n/)
+    .map((x) => x.trim())
+    .find((x) => /^path\s+reg_\w+\s+/i.test(x))
+  if (!line) return ""
+  const match = line.match(/^path\s+reg_\w+\s+(.*)$/i)
+  if (!match) return ""
+  return match[1]?.trim() ?? ""
+}
+
+function readPath() {
+  try {
+    return parsePath(execFileSync("reg.exe", ["query", ENV_KEY, "/v", "Path"], { encoding: "utf8", windowsHide: true }))
+  } catch {
+    return ""
+  }
+}
+
+function writePath(raw: string) {
+  execFileSync("reg.exe", ["add", ENV_KEY, "/v", "Path", "/t", "REG_EXPAND_SZ", "/d", raw, "/f"], {
+    windowsHide: true,
+  })
+}
+
+function addPath(dir: string) {
+  const raw = readPath()
+  const list = split(raw)
+  const next = [dir, ...list.filter((x) => norm(x) !== norm(dir))]
+  if (next.join(";") !== list.join(";")) {
+    writePath(next.join(";"))
+  }
+
+  const env = split(process.env.PATH ?? "")
+  const has = env.some((x) => norm(x) === norm(dir))
+  if (has) return
+  process.env.PATH = process.env.PATH ? `${dir};${process.env.PATH}` : dir
+}
+
+function installCliWindows() {
+  const exe = getSidecarPath()
+  if (!existsSync(exe)) {
+    throw new Error(`CLI binary not found: ${exe}`)
+  }
+
+  const list = windowsDirs()
+  let file = ""
+  const err: string[] = []
+  for (const dir of list) {
+    try {
+      const next = writeCmd(dir, exe)
+      try {
+        addPath(dir)
+      } catch {}
+      if (!file) file = next
+    } catch (e) {
+      err.push(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  if (file) return file
+  throw new Error(err.join("; "))
 }
 
 function getCliInstallPath() {
