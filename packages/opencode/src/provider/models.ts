@@ -90,14 +90,27 @@ export namespace ModelsDev {
 
   export const Data = lazy(async () => {
     const result = await Filesystem.readJson(Flag.OPENCODE_MODELS_PATH ?? filepath).catch(() => {})
-    if (result) return result
+    if (result) {
+      log.info("Loaded models from cache", {
+        path: Flag.OPENCODE_MODELS_PATH ?? filepath,
+      })
+      return result
+    }
     // @ts-ignore
     const snapshot = await import("./models-snapshot.js")
       .then((m) => m.snapshot as Record<string, unknown>)
       .catch(() => undefined)
-    if (snapshot) return snapshot
+    if (snapshot) {
+      log.info("Loaded models from snapshot")
+      return snapshot
+    }
     if (Flag.OPENCODE_DISABLE_MODELS_FETCH) return {}
+    const now = Date.now()
     const json = await fetch(`${url()}/api.json`).then((x) => x.text())
+    log.info("Loaded models from network", {
+      duration: Date.now() - now,
+      url: `${url()}/api.json`,
+    })
     return JSON.parse(json)
   })
 
@@ -110,6 +123,10 @@ export namespace ModelsDev {
   }
 
   export async function refresh() {
+    const now = Date.now()
+    log.info("Refreshing models", {
+      url: `${url()}/api.json`,
+    })
     const result = await fetch(`${url()}/api.json`, {
       headers: {
         "User-Agent": Installation.USER_AGENT,
@@ -121,8 +138,20 @@ export namespace ModelsDev {
       })
     })
     if (result && result.ok) {
-      await Filesystem.write(filepath, await result.text())
+      const text = await result.text()
+      await Filesystem.write(filepath, text)
       ModelsDev.Data.reset()
+      log.info("Refreshed models", {
+        duration: Date.now() - now,
+        bytes: text.length,
+      })
+      return
+    }
+    if (result) {
+      log.warn("Models refresh returned non-ok status", {
+        status: result.status,
+        duration: Date.now() - now,
+      })
     }
   }
 }
