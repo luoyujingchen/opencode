@@ -15,12 +15,141 @@ import { Clipboard } from "@tui/util/clipboard"
 import { useToast } from "../ui/toast"
 
 const PROVIDER_PRIORITY: Record<string, number> = {
-  opencode: 0,
-  "opencode-go": 1,
-  openai: 2,
-  "github-copilot": 3,
-  anthropic: 4,
-  google: 5,
+  fangcode: 0,
+}
+
+const OPENAI_COMPATIBLE = "openai-compatible"
+
+function openaiCompatibleModel(id: string) {
+  const text = "text" as const
+  return {
+    id,
+    name: id,
+    family: "openai-compatible",
+    release_date: "",
+    attachment: false,
+    reasoning: false,
+    temperature: true,
+    tool_call: true,
+    options: {},
+    cost: { input: 0, output: 0, cache_read: 0, cache_write: 0 },
+    limit: { context: 131072, output: 16384 },
+    modalities: { input: [text], output: [text] },
+  }
+}
+
+async function setupOpenAICompatible(input: {
+  dialog: ReturnType<typeof useDialog>
+  sdk: ReturnType<typeof useSDK>
+  sync: ReturnType<typeof useSync>
+  toast: ReturnType<typeof useToast>
+}) {
+  const api = await DialogPrompt.show(input.dialog, "OpenAI Compatible base URL", {
+    placeholder: "https://api.openai.com/v1",
+  })
+  if (!api) return
+
+  const model = await DialogPrompt.show(input.dialog, "Model ID", {
+    placeholder: "gpt-4o-mini",
+  })
+  if (!model) return
+
+  const key = await DialogPrompt.show(input.dialog, "API key", {
+    placeholder: "sk-...",
+  })
+  if (!key) return
+
+  const cfg = await input.sdk.client.config.get()
+  if (cfg.error || !cfg.data) {
+    input.toast.show({
+      variant: "error",
+      message: "Failed to load config",
+    })
+    input.dialog.clear()
+    return
+  }
+
+  const base = api.replace(/\/+$/, "")
+  const id = model.trim()
+  if (!id) {
+    input.toast.show({
+      variant: "warning",
+      message: "Model ID is required",
+    })
+    input.dialog.clear()
+    return
+  }
+
+  const old = cfg.data.provider?.[OPENAI_COMPATIBLE]
+  const next = {
+    provider: {
+      ...(cfg.data.provider ?? {}),
+      [OPENAI_COMPATIBLE]: {
+        ...old,
+        name: "OpenAI Compatible",
+        env: old?.env ?? [],
+        npm: "@ai-sdk/openai-compatible",
+        api: base,
+        options: old?.options ?? {},
+        models: {
+          ...(old?.models ?? {}),
+          [id]: old?.models?.[id] ?? openaiCompatibleModel(id),
+        },
+      },
+    },
+  }
+
+  const updated = await input.sdk.client.global.config.update({
+    config: next,
+  })
+  if (updated.error) {
+    input.toast.show({
+      variant: "error",
+      message: `Failed to update config: ${JSON.stringify(updated.error)}`,
+    })
+    input.dialog.clear()
+    return
+  }
+
+  const auth = await input.sdk.client.auth.set({
+    providerID: OPENAI_COMPATIBLE,
+    auth: {
+      type: "api",
+      key,
+    },
+  })
+  if (auth.error) {
+    input.toast.show({
+      variant: "error",
+      message: "Failed to save API key",
+    })
+    input.dialog.clear()
+    return
+  }
+
+  await input.sdk.client.instance.dispose()
+  await input.sync.bootstrap()
+
+  // Check if provider was loaded
+  let found = input.sync.data.provider.some((x) => x.id === OPENAI_COMPATIBLE)
+  if (!found) {
+    // Retry: dispose + bootstrap again
+    await input.sdk.client.instance.dispose()
+    await input.sync.bootstrap()
+    found = input.sync.data.provider.some((x) => x.id === OPENAI_COMPATIBLE)
+  }
+
+  if (!found) {
+    const available = input.sync.data.provider.map((x) => x.id).join(", ") || "(none)"
+    input.toast.show({
+      variant: "error",
+      message: `Provider "${OPENAI_COMPATIBLE}" not found. Available: [${available}]`,
+    })
+    input.dialog.clear()
+    return
+  }
+
+  input.dialog.replace(() => <DialogModel providerID={OPENAI_COMPATIBLE} />)
 }
 
 export function createDialogProviderOptions() {
@@ -29,19 +158,16 @@ export function createDialogProviderOptions() {
   const sdk = useSDK()
   const toast = useToast()
   const options = createMemo(() => {
-    return pipe(
-      sync.data.provider_next.all,
+    const list = pipe(
+      sync.data.provider_next.all.filter((provider) => provider.id === "fangcode"),
       sortBy((x) => PROVIDER_PRIORITY[x.id] ?? 99),
       map((provider) => ({
         title: provider.name,
         value: provider.id,
         description: {
           opencode: "(Recommended)",
-          anthropic: "(API key)",
-          openai: "(ChatGPT Plus/Pro or API key)",
-          "opencode-go": "Low cost subscription for everyone",
         }[provider.id],
-        category: provider.id in PROVIDER_PRIORITY ? "Popular" : "Other",
+        category: "Popular",
         async onSelect() {
           const methods = sync.data.provider_auth[provider.id] ?? [
             {
@@ -110,8 +236,32 @@ export function createDialogProviderOptions() {
         },
       })),
     )
+
+    const has = list.some((item) => item.value === OPENAI_COMPATIBLE)
+    if (!has) {
+      list.push({
+        title: "OpenAI Compatible",
+        value: OPENAI_COMPATIBLE,
+        description: "Any OpenAI-compatible API (base URL + API key)",
+        category: "Popular",
+        async onSelect() {
+          await setupOpenAICompatible({
+            dialog,
+            sdk,
+            sync,
+            toast,
+          })
+        },
+      })
+    }
+
+    return list
   })
   return options
+}
+
+export function DialogFangcodeApiKey() {
+  return <ApiMethod providerID="fangcode" title="FangCode API key" />
 }
 
 export function DialogProvider() {
@@ -245,17 +395,6 @@ function ApiMethod(props: ApiMethodProps) {
               </text>
               <text fg={theme.text}>
                 Go to <span style={{ fg: theme.primary }}>https://opencode.ai/zen</span> to get a key
-              </text>
-            </box>
-          ),
-          "opencode-go": (
-            <box gap={1}>
-              <text fg={theme.textMuted}>
-                FangCode Go is a $10 per month subscription that provides reliable access to popular open coding models
-                with generous usage limits.
-              </text>
-              <text fg={theme.text}>
-                Go to <span style={{ fg: theme.primary }}>https://opencode.ai/zen</span> and enable FangCode Go
               </text>
             </box>
           ),

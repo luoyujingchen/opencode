@@ -20,17 +20,19 @@ export namespace ConfigPaths {
   }
 
   export async function directories(directory: string, worktree: string) {
-    return [
-      Global.Path.config,
-      ...(!Flag.OPENCODE_DISABLE_PROJECT_CONFIG && !Flag.FANG_DISABLE_PROJECT_CONFIG
-        ? await Array.fromAsync(
-            Filesystem.up({
-              targets: [".fangcode", ".opencode"],
-              start: directory,
-              stop: worktree,
-            }),
-          )
-        : []),
+    const dirs: string[] = [Global.Path.config]
+    if (!Flag.OPENCODE_DISABLE_PROJECT_CONFIG && !Flag.FANG_DISABLE_PROJECT_CONFIG) {
+      dirs.push(
+        ...(await Array.fromAsync(
+          Filesystem.up({
+            targets: [".fangcode", ".opencode"],
+            start: directory,
+            stop: worktree,
+          }),
+        )),
+      )
+    }
+    dirs.push(
       ...(await Array.fromAsync(
         Filesystem.up({
           targets: [".fangcode", ".opencode"],
@@ -38,8 +40,10 @@ export namespace ConfigPaths {
           stop: Global.Path.home,
         }),
       )),
-      ...(Flag.FANG_CONFIG_DIR || Flag.OPENCODE_CONFIG_DIR ? [Flag.FANG_CONFIG_DIR || Flag.OPENCODE_CONFIG_DIR] : []),
-    ]
+    )
+    const cfg = Flag.FANG_CONFIG_DIR || Flag.OPENCODE_CONFIG_DIR
+    if (cfg) dirs.push(cfg)
+    return dirs
   }
 
   export function fileInDirectory(dir: string, name: string) {

@@ -13,6 +13,8 @@ import { Log } from "../../util/log"
 
 const log = Log.create({ service: "server" })
 
+const ALLOW = new Set(["fangcode", "openai-compatible"])
+
 export const ProviderRoutes = lazy(() =>
   new Hono()
     .get(
@@ -46,12 +48,15 @@ export const ProviderRoutes = lazy(() =>
         const allProviders = await ModelsDev.get()
         const filteredProviders: Record<string, (typeof allProviders)[string]> = {}
         for (const [key, value] of Object.entries(allProviders)) {
+          if (!ALLOW.has(key)) continue
           if ((enabled ? enabled.has(key) : true) && !disabled.has(key)) {
             filteredProviders[key] = value
           }
         }
 
-        const connected = await Provider.list()
+        const connected = Object.fromEntries(
+          Object.entries(await Provider.list()).filter(([key]) => ALLOW.has(key)),
+        )
         const providers = Object.assign(
           mapValues(filteredProviders, (x) => Provider.fromModelsDevProvider(x)),
           connected,

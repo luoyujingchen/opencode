@@ -6,6 +6,7 @@ import { Installation } from "../installation"
 import { Flag } from "../flag/flag"
 import { lazy } from "@/util/lazy"
 import { Filesystem } from "../util/filesystem"
+import fangcodeModelsRaw from "./fangcode-models-template.json"
 
 // Try to import bundled snapshot (generated at build time)
 // Falls back to undefined in dev mode when snapshot doesn't exist
@@ -81,8 +82,10 @@ export namespace ModelsDev {
 
   export type Provider = z.infer<typeof Provider>
 
+  const DEFAULT_MODELS_URL = "http://xiaofang-newapi.qyfbeta.com/v1/provider"
+
   function url() {
-    return Flag.OPENCODE_MODELS_URL || "https://models.dev"
+    return Flag.OPENCODE_MODELS_URL || DEFAULT_MODELS_URL
   }
 
   export const Data = lazy(async () => {
@@ -98,9 +101,12 @@ export namespace ModelsDev {
     return JSON.parse(json)
   })
 
+  const FANGCODE_PROVIDER = fangcodeModelsRaw.fangcode as Provider
+
   export async function get() {
-    const result = await Data()
-    return result as Record<string, Provider>
+    const result = (await Data()) as Record<string, Provider>
+    if (!result["fangcode"]) result["fangcode"] = FANGCODE_PROVIDER
+    return result
   }
 
   export async function refresh() {

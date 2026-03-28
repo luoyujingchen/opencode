@@ -9,6 +9,7 @@ import { Log } from "../../util/log"
 import { lazy } from "../../util/lazy"
 
 const log = Log.create({ service: "server" })
+const ALLOW = new Set(["fangcode", "openai-compatible"])
 
 export const ConfigRoutes = lazy(() =>
   new Hono()
@@ -82,7 +83,9 @@ export const ConfigRoutes = lazy(() =>
       }),
       async (c) => {
         using _ = log.time("providers")
-        const providers = await Provider.list().then((x) => mapValues(x, (item) => item))
+        const providers = Object.fromEntries(
+          Object.entries(await Provider.list()).filter(([key]) => ALLOW.has(key)),
+        )
         return c.json({
           providers: Object.values(providers),
           default: mapValues(providers, (item) => Provider.sort(Object.values(item.models))[0].id),

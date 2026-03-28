@@ -836,15 +836,11 @@ export namespace Provider {
     })
   export type Info = z.infer<typeof Info>
 
-  function brand(name: string) {
-    return name.replace(/OpenCode/g, "FangCode").replace(/opencode/g, "fangcode")
-  }
-
   function fromModelsDevModel(provider: ModelsDev.Provider, model: ModelsDev.Model): Model {
     const m: Model = {
       id: ModelID.make(model.id),
       providerID: ProviderID.make(provider.id),
-      name: brand(model.name),
+      name: model.name,
       family: model.family,
       api: {
         id: model.id,
@@ -911,7 +907,7 @@ export namespace Provider {
     return {
       id: ProviderID.make(provider.id),
       source: "custom",
-      name: brand(provider.name),
+      name: provider.name,
       env: provider.env ?? [],
       options: {},
       models: mapValues(provider.models, (model) => fromModelsDevModel(provider, model)),
@@ -968,7 +964,7 @@ export namespace Provider {
       const existing = database[providerID]
       const parsed: Info = {
         id: ProviderID.make(providerID),
-        name: brand(provider.name ?? existing?.name ?? providerID),
+        name: provider.name ?? existing?.name ?? providerID,
         env: provider.env ?? existing?.env ?? [],
         options: mergeDeep(existing?.options ?? {}, provider.options ?? {}),
         source: "config",
@@ -978,7 +974,7 @@ export namespace Provider {
       for (const [modelID, model] of Object.entries(provider.models ?? {})) {
         const existingModel = parsed.models[model.id ?? modelID]
         const name = iife(() => {
-          if (model.name) return brand(model.name)
+          if (model.name) return model.name
           if (model.id && model.id !== modelID) return modelID
           return existingModel?.name ?? modelID
         })
@@ -1112,7 +1108,7 @@ export namespace Provider {
       const providerID = ProviderID.make(id)
       const partial: Partial<Info> = { source: "config" }
       if (provider.env) partial.env = provider.env
-      if (provider.name) partial.name = brand(provider.name)
+      if (provider.name) partial.name = provider.name
       if (provider.options) partial.options = provider.options
       mergeProvider(providerID, partial)
     }

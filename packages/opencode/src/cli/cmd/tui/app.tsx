@@ -8,7 +8,7 @@ import { win32DisableProcessedInput, win32FlushInputBuffer, win32InstallCtrlCGua
 import { Flag } from "@/flag/flag"
 import semver from "semver"
 import { DialogProvider, useDialog } from "@tui/ui/dialog"
-import { DialogProvider as DialogProviderList } from "@tui/component/dialog-provider"
+import { DialogFangcodeApiKey, DialogProvider as DialogProviderList } from "@tui/component/dialog-provider"
 import { SDKProvider, useSDK } from "@tui/context/sdk"
 import { SyncProvider, useSync } from "@tui/context/sync"
 import { LocalProvider, useLocal } from "@tui/context/local"
@@ -354,7 +354,7 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       (isEmpty, wasEmpty) => {
         // only trigger when we transition into an empty-provider state
         if (!isEmpty || wasEmpty) return
-        dialog.replace(() => <DialogProviderList />)
+        dialog.replace(() => <DialogFangcodeApiKey />)
       },
     ),
   )
