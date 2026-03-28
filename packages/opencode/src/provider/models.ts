@@ -112,12 +112,20 @@ export namespace ModelsDev {
 
   export const Data = lazy(async () => {
     const result = await Filesystem.readJson(Flag.OPENCODE_MODELS_PATH ?? filepath).catch(() => {})
-    if (result) return result
+    if (result) {
+      log.info("Loaded models from cache", {
+        path: Flag.OPENCODE_MODELS_PATH ?? filepath,
+      })
+      return result
+    }
     // @ts-ignore
     const snapshot = await import("./models-snapshot.js")
       .then((m) => m.snapshot as Record<string, unknown>)
       .catch(() => undefined)
-    if (snapshot) return snapshot
+    if (snapshot) {
+      log.info("Loaded models from snapshot")
+      return snapshot
+    }
     if (Flag.OPENCODE_DISABLE_MODELS_FETCH) return {}
     return Flock.withLock(`models-dev:${filepath}`, async () => {
       const result = await Filesystem.readJson(Flag.OPENCODE_MODELS_PATH ?? filepath).catch(() => {})
@@ -148,10 +156,6 @@ export namespace ModelsDev {
       if (!result.ok) return
       await Filesystem.write(filepath, result.text)
       ModelsDev.Data.reset()
-    }).catch((e) => {
-      log.error("Failed to fetch models.dev", {
-        error: e,
-      })
     })
   }
 }
