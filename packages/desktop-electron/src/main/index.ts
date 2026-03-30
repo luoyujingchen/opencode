@@ -277,7 +277,7 @@ function ensureLoopbackNoProxy() {
 }
 
 async function getSidecarPort() {
-  const fromEnv = process.env.FANG_PORT || process.env.OPENCODE_PORT
+  const fromEnv = process.env.FANGCODE_PORT || process.env.OPENCODE_PORT
   if (fromEnv) {
     const parsed = Number.parseInt(fromEnv, 10)
     if (!Number.isNaN(parsed)) return parsed

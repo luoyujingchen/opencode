@@ -21,7 +21,7 @@ const legacyState = path.join(xdgState!, legacy)
 export namespace Global {
   export const Path = {
     get home() {
-      return process.env.FANG_TEST_HOME || process.env.OPENCODE_TEST_HOME || os.homedir()
+      return process.env.FANGCODE_TEST_HOME || process.env.OPENCODE_TEST_HOME || os.homedir()
     },
     data,
     bin: path.join(cache, "bin"),

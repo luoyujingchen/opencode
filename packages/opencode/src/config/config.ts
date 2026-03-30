@@ -62,7 +62,7 @@ export namespace Config {
 
   export function managedConfigDir() {
     return (
-      process.env.FANG_TEST_MANAGED_CONFIG_DIR ||
+      process.env.FANGCODE_TEST_MANAGED_CONFIG_DIR ||
       process.env.OPENCODE_TEST_MANAGED_CONFIG_DIR ||
       systemManagedConfigDir()
     )
@@ -1363,8 +1363,8 @@ export namespace Config {
             result.plugin.push(...(yield* Effect.promise(() => loadPlugin(dir))))
           }
 
-          if (process.env.FANG_CONFIG_CONTENT || process.env.OPENCODE_CONFIG_CONTENT) {
-            const content = process.env.FANG_CONFIG_CONTENT || process.env.OPENCODE_CONFIG_CONTENT!
+          if (process.env.FANGCODE_CONFIG_CONTENT || process.env.OPENCODE_CONFIG_CONTENT) {
+            const content = process.env.FANGCODE_CONFIG_CONTENT || process.env.OPENCODE_CONFIG_CONTENT!
             result = mergeConfigConcatArrays(
               result,
               yield* loadConfig(content, {

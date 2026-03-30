@@ -25,7 +25,7 @@ type RpcClient = ReturnType<typeof Rpc.client<typeof rpc>>
 
 function lang() {
   const raw =
-    process.env.FANG_LANG ??
+    process.env.FANGCODE_LANG ??
     process.env.OPENCODE_LANG ??
     process.env.LC_ALL ??
     process.env.LANG ??

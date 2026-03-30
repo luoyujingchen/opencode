@@ -79,9 +79,9 @@ const cli = yargs(hideBin(process.argv))
     })
 
     process.env.AGENT = "1"
-    process.env.FANG = "1"
+    process.env.FANGCODE = "1"
     process.env.OPENCODE = "1"
-    process.env.FANG_PID = String(process.pid)
+    process.env.FANGCODE_PID = String(process.pid)
     process.env.OPENCODE_PID = String(process.pid)
 
     Log.Default.info("fangcode", {
