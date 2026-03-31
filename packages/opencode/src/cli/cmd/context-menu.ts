@@ -297,13 +297,8 @@ export namespace ContextMenuAuto {
 
     // Always ensure shim + PATH on Windows
     const auto = startup()
-    if (auto) {
-      const lk = await link(exe)
-      if (!lk.ok) {
-        const sh = await shim(exe)
-        if (!sh.ok) return
-      }
-    } else {
+    const lk = await link(exe)
+    if (!lk.ok) {
       const sh = await shim(exe)
       if (!sh.ok) return
     }
