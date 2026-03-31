@@ -81,8 +81,13 @@ import { DialogExportOptions } from "../../ui/dialog-export-options"
 import { formatTranscript } from "../../util/transcript"
 import { UI } from "@/cli/ui.ts"
 import { useTuiConfig } from "../../context/tui-config"
+import { isUnicodeLogoSupported } from "@/cli/logo"
 
 addDefaultParsers(parsers.parsers)
+
+const unicode = isUnicodeLogoSupported()
+const BULLET = unicode ? "▣ " : "* "
+const DOT = unicode ? " · " : " - "
 
 class CustomSpeedScroll implements ScrollAcceleration {
   constructor(private speed: number) {}
@@ -1395,15 +1400,15 @@ function AssistantMessage(props: { message: AssistantMessage; parts: Part[]; las
                       : local.agent.color(props.message.agent),
                 }}
               >
-                ▣{" "}
+                {BULLET}
               </span>{" "}
               <span style={{ fg: theme.text }}>{Locale.titlecase(props.message.mode)}</span>
-              <span style={{ fg: theme.textMuted }}> · {props.message.modelID}</span>
+              <span style={{ fg: theme.textMuted }}>{DOT}{props.message.modelID}</span>
               <Show when={duration()}>
-                <span style={{ fg: theme.textMuted }}> · {Locale.duration(duration())}</span>
+                <span style={{ fg: theme.textMuted }}>{DOT}{Locale.duration(duration())}</span>
               </Show>
               <Show when={props.message.error?.name === "MessageAbortedError"}>
-                <span style={{ fg: theme.textMuted }}> · interrupted</span>
+                <span style={{ fg: theme.textMuted }}>{DOT}interrupted</span>
               </Show>
             </text>
           </box>
