@@ -294,11 +294,9 @@ export namespace ContextMenuAuto {
       Filesystem.exists(main()),
       Filesystem.exists(alt()),
     ])
-    const cmd = c1 || c2
 
+    // Always ensure shim + PATH on Windows
     const auto = startup()
-    if (!auto && !cmd && !dir && !bg && !drive) return
-
     if (auto) {
       const lk = await link(exe)
       if (!lk.ok) {
