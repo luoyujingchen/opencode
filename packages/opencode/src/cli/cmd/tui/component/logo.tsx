@@ -1,16 +1,28 @@
 import { TextAttributes, RGBA } from "@opentui/core"
 import { For, type JSX } from "solid-js"
 import { useTheme, tint } from "@tui/context/theme"
-import { logo, marks } from "@/cli/logo"
+import { logo, marks, isUnicodeLogoSupported, plainText } from "@/cli/logo"
 
 // Shadow markers (rendered chars in parens):
 // _ = full shadow cell (space with bg=shadow)
 // ^ = letter top, shadow bottom (▀ with fg=letter, bg=shadow)
 // ~ = shadow top only (▀ with fg=shadow)
 const SHADOW_MARKER = new RegExp(`[${marks}]`)
+const unicode = isUnicodeLogoSupported()
 
 export function Logo() {
   const { theme } = useTheme()
+
+  if (!unicode) {
+    return (
+      <box>
+        <box flexDirection="row" gap={1}>
+          <text fg={theme.textMuted} selectable={false}>{plainText.left}</text>
+          <text fg={theme.text} attributes={TextAttributes.BOLD} selectable={false}>{plainText.right}</text>
+        </box>
+      </box>
+    )
+  }
 
   const renderLine = (line: string, fg: RGBA, bold: boolean): JSX.Element[] => {
     const shadow = tint(theme.background, fg, 0.25)

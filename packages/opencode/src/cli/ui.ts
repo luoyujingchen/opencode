@@ -1,7 +1,7 @@
 import z from "zod"
 import { EOL } from "os"
 import { NamedError } from "@opencode-ai/util/error"
-import { logo as glyphs } from "./logo"
+import { logo as glyphs, isUnicodeLogoSupported, plainText } from "./logo"
 
 export namespace UI {
   export const CancelledError = NamedError.create("UICancelledError", z.void())
@@ -43,6 +43,14 @@ export namespace UI {
   export function logo(pad?: string) {
     const result: string[] = []
     const reset = "\x1b[0m"
+
+    if (!isUnicodeLogoSupported()) {
+      if (pad) result.push(pad)
+      result.push(Style.TEXT_DIM_BOLD, plainText.left, " ", reset)
+      result.push(Style.TEXT_HIGHLIGHT_BOLD, plainText.right, reset)
+      return result.join("")
+    }
+
     const left = {
       fg: "\x1b[90m",
       shadow: "\x1b[38;5;235m",
