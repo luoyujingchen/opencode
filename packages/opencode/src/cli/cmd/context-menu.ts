@@ -26,6 +26,8 @@ function keys(raw: string) {
   return {
     dir: `${stem}\\Directory\\shell\\${tag}`,
     dirCmd: `${stem}\\Directory\\shell\\${tag}\\command`,
+    folder: `${stem}\\Folder\\shell\\${tag}`,
+    folderCmd: `${stem}\\Folder\\shell\\${tag}\\command`,
     bg: `${stem}\\Directory\\Background\\shell\\${tag}`,
     bgCmd: `${stem}\\Directory\\Background\\shell\\${tag}\\command`,
     drive: `${stem}\\Drive\\shell\\${tag}`,
@@ -99,6 +101,9 @@ function menu(input: {
     { key: key.dir, data: input.name },
     { key: key.dir, name: "Icon", data: input.run.icon },
     { key: key.dirCmd, data: input.run.dir },
+    { key: key.folder, data: input.name },
+    { key: key.folder, name: "Icon", data: input.run.icon },
+    { key: key.folderCmd, data: input.run.dir },
     { key: key.bg, data: input.name },
     { key: key.bg, name: "Icon", data: input.run.icon },
     { key: key.bgCmd, data: input.run.bg },
@@ -231,48 +236,40 @@ async function unlink() {
   return removePath(bin())
 }
 
-async function which() {
-  for (const name of ["fang", "fangcode"]) {
-    const out = await Process.run(["where", name], { nothrow: true })
-    if (out.code !== 0) continue
-    const line = out.stdout
-      .toString("utf8")
-      .split(/\r?\n/)
-      .map((x) => x.trim())
-      .find(Boolean)
-    if (!line) continue
-    return path.resolve(line)
-  }
+async function ping(raw: string) {
+  const out = await Process.run([raw, "--version"], {
+    nothrow: true,
+    timeout: 4_000,
+  })
+  return out.code === 0
 }
 
 async function launch(input: { mode: Mode; exe?: string }) {
+  const exe = path.resolve(input.exe ?? process.execPath)
   if (input.mode === "auto") {
-    const exe = path.resolve(input.exe ?? process.execPath)
     const out = await shim(exe)
     if (out.ok) {
       const cmd = main()
-      return {
-        mode: "auto" as const,
-        shim: true as const,
-        icon: `"${exe}"`,
-        dir: `"${cmd}" "%1"`,
-        bg: `"${cmd}" "%V"`,
+      if (await ping(cmd)) {
+        return {
+          mode: "auto" as const,
+          shim: true as const,
+          icon: `"${exe}"`,
+          dir: `"${cmd}" "%1"`,
+          bg: `"${cmd}" "%V"`,
+        }
       }
     }
 
-    const cmd = await which()
-    if (cmd) {
-      return {
-        mode: "auto" as const,
-        shim: false as const,
-        icon: `"${cmd}"`,
-        dir: `fangcode "%1"`,
-        bg: `fangcode "%V"`,
-      }
+    return {
+      mode: "path" as const,
+      shim: false as const,
+      icon: `"${exe}"`,
+      dir: `"${exe}" "%1"`,
+      bg: `"${exe}" "%V"`,
     }
   }
 
-  const exe = path.resolve(input.exe ?? process.execPath)
   return {
     mode: "path" as const,
     shim: false as const,
@@ -287,13 +284,7 @@ export namespace ContextMenuAuto {
     if (process.platform !== "win32") return
 
     const key = keys("fangcode")
-    const [dir, bg, drive, c1, c2] = await Promise.all([
-      has(key.dir),
-      has(key.bg),
-      has(key.drive),
-      Filesystem.exists(main()),
-      Filesystem.exists(alt()),
-    ])
+    const [dir, folder, bg, drive] = await Promise.all([has(key.dir), has(key.folder), has(key.bg), has(key.drive)])
 
     // Always ensure shim + PATH on Windows
     const auto = startup()
@@ -303,12 +294,13 @@ export namespace ContextMenuAuto {
       if (!sh.ok) return
     }
 
-    if (dir && bg && drive) return
+    if (dir && folder && bg && drive) return
 
+    const target = path.resolve(exe)
     const run = {
-      icon: `"${path.resolve(exe)}"`,
-      dir: `"${main()}" "%1"`,
-      bg: `"${main()}" "%V"`,
+      icon: `"${target}"`,
+      dir: `"${target}" "%1"`,
+      bg: `"${target}" "%V"`,
     }
     const errs = await register(
       menu({
@@ -342,7 +334,7 @@ export const ContextMenuInstallCommand = cmd({
       .option("launcher", {
         type: "string",
         choices: ["auto", "path"],
-        describe: "auto: use fangcode from PATH, path: use fixed executable path",
+        describe: "auto: use linked command when available, fallback to executable path",
         default: "auto",
       })
       .option("exe", {
@@ -373,16 +365,13 @@ export const ContextMenuInstallCommand = cmd({
       return
     }
 
-    prompts.log.success("Registered context menu for folder, folder background, and drive")
+    prompts.log.success("Registered context menu for folder, folder class, folder background, and drive")
     if (run.mode === "auto" && run.shim) {
       prompts.log.info("Launcher mode: linked fangcode.cmd (stable for right-click)")
       prompts.log.info("If exe path/version changes, run install again once to refresh link")
     }
-    if (run.mode === "auto" && !run.shim) {
-      prompts.log.warn("Launcher mode: PATH fallback (could be affected by PATH order)")
-    }
     if (run.mode === "path") {
-      prompts.log.warn("Launcher mode: fixed path (re-run install if exe path changes)")
+      prompts.log.warn("Launcher mode: executable path (re-run install if exe path changes)")
     }
     prompts.outro("Done")
   },
@@ -469,7 +458,7 @@ export const ContextMenuUninstallCommand = cmd({
     const key = keys(args.id)
     prompts.intro("Windows context menu")
 
-    const list = [key.dir, key.bg, key.drive]
+    const list = [key.dir, key.folder, key.bg, key.drive]
     const errs: string[] = []
     for (const item of list) {
       const out = await del(item)
@@ -511,14 +500,15 @@ export const ContextMenuStatusCommand = cmd({
 
     const key = keys(args.id)
     prompts.intro("Windows context menu")
-    const [dir, bg, drive] = await Promise.all([has(key.dir), has(key.bg), has(key.drive)])
+    const [dir, folder, bg, drive] = await Promise.all([has(key.dir), has(key.folder), has(key.bg), has(key.drive)])
 
     prompts.log.info(`Folder: ${dir ? "installed" : "missing"}`)
+    prompts.log.info(`Folder class: ${folder ? "installed" : "missing"}`)
     prompts.log.info(`Folder background: ${bg ? "installed" : "missing"}`)
     prompts.log.info(`Drive: ${drive ? "installed" : "missing"}`)
 
-    if (dir && bg && drive) prompts.log.success("Context menu is fully installed")
-    if (!dir || !bg || !drive) prompts.log.warn("Context menu is not fully installed")
+    if (dir && folder && bg && drive) prompts.log.success("Context menu is fully installed")
+    if (!dir || !folder || !bg || !drive) prompts.log.warn("Context menu is not fully installed")
 
     prompts.outro("Done")
   },
