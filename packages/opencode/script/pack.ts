@@ -2,6 +2,7 @@
 import { $ } from "bun"
 import pkg from "../package.json"
 import { fileURLToPath } from "url"
+import { cp, mkdir, rm } from "node:fs/promises"
 
 const dir = fileURLToPath(new URL("..", import.meta.url))
 process.chdir(dir)
@@ -20,10 +21,10 @@ const version = Object.values(binaries)[0]
 const name = pkg.name
 const root = `./dist/${name}`
 
-await $`rm -rf ${root}`
-await $`mkdir -p ${root}`
-await $`cp -r ./bin ${root}/bin`
-await $`cp ./script/postinstall.mjs ${root}/postinstall.mjs`
+await rm(root, { recursive: true, force: true })
+await mkdir(root, { recursive: true })
+await cp("./bin", `${root}/bin`, { recursive: true })
+await cp("./script/postinstall.mjs", `${root}/postinstall.mjs`)
 await Bun.file(`${root}/LICENSE`).write(await Bun.file("../../LICENSE").text())
 
 const map = { win32: "windows", darwin: "darwin", linux: "linux" } as const
