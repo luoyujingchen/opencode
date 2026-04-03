@@ -268,12 +268,44 @@ function windowsDir() {
   return join(homedir(), "AppData", "Local", "fangcode", "bin")
 }
 
-function windowsCmd(name: string) {
-  return join(windowsDir(), `${name}.cmd`)
-}
-
 function windowsBody(exe: string) {
   return `@echo off\r\n"${exe}" %*\r\n`
+}
+
+function npmDir() {
+  for (const cmd of ["npm.cmd", "npm"]) {
+    try {
+      const out = execFileSync(cmd, ["prefix", "-g"], {
+        encoding: "utf8",
+        windowsHide: true,
+      }).trim()
+      if (out) return out
+    } catch {}
+  }
+  const appdata = process.env.APPDATA
+  if (!appdata) return ""
+  return join(appdata, "npm")
+}
+
+function windowsDirs() {
+  const out: string[] = []
+  const list = [npmDir(), windowsDir()]
+  for (const item of list) {
+    if (!item) continue
+    if (out.some((x) => norm(x) === norm(item))) continue
+    out.push(item)
+  }
+  return out
+}
+
+function writeCmd(dir: string, exe: string) {
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+  const body = windowsBody(exe)
+  const main = join(dir, "fangcode.cmd")
+  const alt = join(dir, "fang.cmd")
+  writeFileSync(main, body, "ascii")
+  writeFileSync(alt, body, "ascii")
+  return main
 }
 
 function norm(raw: string) {
@@ -334,17 +366,23 @@ function installCliWindows() {
     throw new Error(`CLI binary not found: ${exe}`)
   }
 
-  const dir = windowsDir()
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+  const list = windowsDirs()
+  let file = ""
+  const err: string[] = []
+  for (const dir of list) {
+    try {
+      const next = writeCmd(dir, exe)
+      try {
+        addPath(dir)
+      } catch {}
+      if (!file) file = next
+    } catch (e) {
+      err.push(e instanceof Error ? e.message : String(e))
+    }
+  }
 
-  const body = windowsBody(exe)
-  const main = windowsCmd("fangcode")
-  const alt = windowsCmd("fang")
-  writeFileSync(main, body, "ascii")
-  writeFileSync(alt, body, "ascii")
-
-  addPath(dir)
-  return main
+  if (file) return file
+  throw new Error(err.join("; "))
 }
 
 function getCliInstallPath() {
