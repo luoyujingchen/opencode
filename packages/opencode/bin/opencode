@@ -26,14 +26,10 @@ const scriptPath = fs.realpathSync(__filename)
 const scriptDir = path.dirname(scriptPath)
 
 //
-const cached = path.join(scriptDir, ".fangcode")
-if (fs.existsSync(cached)) {
+for (const name of [".fangcode", ".fangcode.exe", ".opencode", ".opencode.exe"]) {
+  const cached = path.join(scriptDir, name)
+  if (!fs.existsSync(cached)) continue
   run(cached)
-} else {
-  const legacy = path.join(scriptDir, ".opencode")
-  if (fs.existsSync(legacy)) {
-    run(legacy)
-  }
 }
 
 const platformMap = {
@@ -55,8 +51,8 @@ let arch = archMap[os.arch()]
 if (!arch) {
   arch = os.arch()
 }
-const base = "fangcode-" + platform + "-" + arch
-const binary = platform === "windows" ? "fangcode.exe" : "fangcode"
+const bases = [`fangcode-${platform}-${arch}`, `opencode-${platform}-${arch}`]
+const binaries = platform === "windows" ? ["fangcode.exe", "opencode.exe"] : ["fangcode", "opencode"]
 
 function supportsAvx2() {
   if (arch !== "x64") return false
@@ -108,7 +104,7 @@ function supportsAvx2() {
   return false
 }
 
-const names = (() => {
+function variants(base) {
   const avx2 = supportsAvx2()
   const baseline = arch === "x64" && !avx2
 
@@ -151,6 +147,17 @@ const names = (() => {
     return [base, `${base}-baseline`]
   }
   return [base]
+}
+
+const names = (() => {
+  const out = []
+  for (const base of bases) {
+    for (const item of variants(base)) {
+      if (out.includes(item)) continue
+      out.push(item)
+    }
+  }
+  return out
 })()
 
 function findBinary(startDir) {
@@ -159,8 +166,10 @@ function findBinary(startDir) {
     const modules = path.join(current, "node_modules")
     if (fs.existsSync(modules)) {
       for (const name of names) {
-        const candidate = path.join(modules, name, "bin", binary)
-        if (fs.existsSync(candidate)) return candidate
+        for (const binary of binaries) {
+          const candidate = path.join(modules, name, "bin", binary)
+          if (fs.existsSync(candidate)) return candidate
+        }
       }
     }
     const parent = path.dirname(current)
