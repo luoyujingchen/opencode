@@ -16,7 +16,7 @@ import { Script } from "@opencode-ai/script"
 import pkg from "../package.json"
 
 const DEFAULT_MODELS_URL = "http://xiaofang-newapi.qyfbeta.com/v1/provider"
-const modelsUrl = process.env.FANGCODE_MODELS_URL || process.env.FANG_MODELS_URL || process.env.OPENCODE_MODELS_URL || DEFAULT_MODELS_URL
+const modelsUrl = process.env.FANG_MODELS_URL || process.env.OPENCODE_MODELS_URL || DEFAULT_MODELS_URL
 const fallbackModelsPath = path.join(dir, "src/provider/fangcode-models-template.json")
 // Fetch and generate models.dev snapshot
 const modelsData = await (async () => {
