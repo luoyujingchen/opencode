@@ -63,7 +63,7 @@ function show(out: string) {
 
 const cli = yargs(args)
   .parserConfiguration({ "populate--": true })
-  .scriptName("opencode")
+  .scriptName("fangcode")
   .wrap(100)
   .help("help", "show help")
   .alias("help", "h")
@@ -100,15 +100,17 @@ const cli = yargs(args)
     Heap.start()
 
     process.env.AGENT = "1"
+    process.env.FANG = "1"
     process.env.OPENCODE = "1"
+    process.env.FANG_PID = String(process.pid)
     process.env.OPENCODE_PID = String(process.pid)
 
-    Log.Default.info("opencode", {
+    Log.Default.info("fangcode", {
       version: Installation.VERSION,
       args: process.argv.slice(2),
     })
 
-    const marker = path.join(Global.Path.data, "opencode.db")
+    const marker = path.join(Global.Path.data, "fangcode.db")
     if (!(await Filesystem.exists(marker))) {
       const tty = process.stderr.isTTY
       process.stderr.write("Performing one time database migration, may take a few minutes..." + EOL)

@@ -53,7 +53,7 @@ export namespace Server {
         if (c.req.method === "OPTIONS") return next()
         const password = Flag.OPENCODE_SERVER_PASSWORD
         if (!password) return next()
-        const username = Flag.OPENCODE_SERVER_USERNAME ?? "opencode"
+        const username = Flag.OPENCODE_SERVER_USERNAME ?? "fangcode"
         return basicAuth({ username, password })(c, next)
       })
       .use(async (c, next) => {
@@ -86,8 +86,16 @@ export namespace Server {
             )
               return input
 
-            if (/^https:\/\/([a-z0-9-]+\.)*opencode\.ai$/.test(input)) return input
-            if (opts?.cors?.includes(input)) return input
+
+            // *.opencode.ai or *.fangcode.ai (https only)
+            if (/^https:\/\/([a-z0-9-]+\.)*(opencode|fangcode)\.ai$/.test(input)) {
+              return input
+            }
+            if (opts?.cors?.includes(input)) {
+              return input
+            }
+
+            return
           },
         }),
       )
@@ -180,6 +188,7 @@ export namespace Server {
           }),
         ),
       )
+
       .post(
         "/log",
         describeRoute({
@@ -232,6 +241,7 @@ export namespace Server {
           return c.json(true)
         },
       )
+
       .use(WorkspaceRouterMiddleware(upgrade))
   }
 

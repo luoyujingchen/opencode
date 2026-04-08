@@ -307,7 +307,7 @@ pub fn run() {
 
     #[cfg(all(target_os = "macos", not(debug_assertions)))]
     let _ = std::process::Command::new("killall")
-        .arg("opencode-cli")
+        .arg("fangcode-cli")
         .output();
 
     let mut builder = tauri::Builder::default()
@@ -437,7 +437,7 @@ async fn initialize(app: AppHandle) {
     let (ready_tx, ready_rx) = oneshot::channel();
     let _ = ready_tx.send(ServerReadyData {
         url: url.clone(),
-        username: Some("opencode".to_string()),
+        username: Some("fangcode".to_string()),
         password: Some(password),
     });
     app.manage(SidecarReady(ready_rx.shared()));
@@ -549,8 +549,10 @@ fn spawn_cli_sync_task(app: AppHandle) {
 
 
 fn get_sidecar_port() -> u32 {
-    option_env!("OPENCODE_PORT")
+    option_env!("FANG_PORT")
+        .or(option_env!("OPENCODE_PORT"))
         .map(|s| s.to_string())
+        .or_else(|| std::env::var("FANG_PORT").ok())
         .or_else(|| std::env::var("OPENCODE_PORT").ok())
         .and_then(|port_str| port_str.parse().ok())
         .unwrap_or_else(|| {
@@ -581,7 +583,7 @@ fn opencode_db_path() -> Result<PathBuf, &'static str> {
         }
     };
 
-    Ok(data_home.join("opencode").join("opencode.db"))
+    Ok(data_home.join("fangcode").join("fangcode.db"))
 }
 
 // Creates a `once` listener for the specified event and returns a future that resolves

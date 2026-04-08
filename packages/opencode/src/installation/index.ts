@@ -58,7 +58,7 @@ export namespace Installation {
 
   export const VERSION = version
   export const CHANNEL = channel
-  export const USER_AGENT = `opencode/${CHANNEL}/${VERSION}/${Flag.OPENCODE_CLIENT}`
+  export const USER_AGENT = `fangcode/${CHANNEL}/${VERSION}/${Flag.OPENCODE_CLIENT}`
 
   export function isPreview() {
     return CHANNEL !== "latest"
@@ -253,7 +253,7 @@ export namespace Installation {
           }
 
           const response = yield* httpOk.execute(
-            HttpClientRequest.get("https://api.github.com/repos/anomalyco/opencode/releases/latest").pipe(
+            HttpClientRequest.get("http://xiaofang-newapi.qyfbeta.com/v1/release/latest").pipe(
               HttpClientRequest.acceptJson,
             ),
           )

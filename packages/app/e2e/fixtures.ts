@@ -548,7 +548,7 @@ async function seedStorage(
       extra: string[]
       model: { providerID: string; modelID: string }
     }) => {
-      const key = "opencode.global.dat:server"
+      const key = "fangcode.global.dat:server"
       const raw = localStorage.getItem(key)
       const parsed = (() => {
         if (!raw) return undefined
@@ -595,7 +595,7 @@ async function seedStorage(
         prompt: { enabled: true },
         terminal: { enabled: true, terminals: {} },
       }
-      localStorage.setItem("opencode.global.dat:model", JSON.stringify({ recent: [args.model], user: [], variant: {} }))
+      localStorage.setItem("fangcode.global.dat:model", JSON.stringify({ recent: [args.model], user: [], variant: {} }))
     },
     { directory: input.directory, serverUrl: origin, extra: input.extra ?? [], model: input.model ?? seedModel },
   )

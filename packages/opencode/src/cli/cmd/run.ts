@@ -220,7 +220,7 @@ function normalizePath(input?: string) {
 
 export const RunCommand = cmd({
   command: "run [message..]",
-  describe: "run opencode with a message",
+  describe: "run fangcode with a message",
   builder: (yargs: Argv) => {
     return yargs
       .positional("message", {
@@ -278,12 +278,12 @@ export const RunCommand = cmd({
       })
       .option("attach", {
         type: "string",
-        describe: "attach to a running opencode server (e.g., http://localhost:4096)",
+        describe: "attach to a running fangcode server (e.g., http://localhost:4096)",
       })
       .option("password", {
         alias: ["p"],
         type: "string",
-        describe: "basic auth password (defaults to OPENCODE_SERVER_PASSWORD)",
+        describe: "basic auth password (defaults to FANG_SERVER_PASSWORD or OPENCODE_SERVER_PASSWORD)",
       })
       .option("dir", {
         type: "string",
