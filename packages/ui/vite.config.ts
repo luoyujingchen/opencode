@@ -45,7 +45,8 @@ function providerIconsPlugin() {
 }
 
 async function fetchProviderIcons() {
-  const url = process.env.OPENCODE_MODELS_URL || "https://models.dev"
+  const DEFAULT_MODELS_URL = "http://xiaofang-newapi.qyfbeta.com/v1/provider"
+  const url = process.env.FANGCODE_MODELS_URL || process.env.FANG_MODELS_URL || process.env.OPENCODE_MODELS_URL || DEFAULT_MODELS_URL
   const providers = await fetch(`${url}/api.json`)
     .then((res) => res.json())
     .then((json) => Object.keys(json))

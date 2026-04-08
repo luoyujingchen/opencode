@@ -16,12 +16,163 @@ import { useToast } from "../ui/toast"
 import { isConsoleManagedProvider } from "@tui/util/provider-origin"
 
 const PROVIDER_PRIORITY: Record<string, number> = {
-  opencode: 0,
-  "opencode-go": 1,
-  openai: 2,
-  "github-copilot": 3,
-  anthropic: 4,
-  google: 5,
+  fangcode: 0,
+}
+
+const OPENAI_COMPATIBLE = "openai-compatible"
+
+function slugify(name: string): string {
+  return (
+    "custom-" +
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .replace(/-+/g, "-")
+  )
+}
+
+function uniqueSlug(base: string, existingIDs: Set<string>): string {
+  let slug = base
+  if (!existingIDs.has(slug)) return slug
+  let i = 2
+  while (existingIDs.has(`${slug}-${i}`)) i++
+  return `${slug}-${i}`
+}
+
+async function fetchModels(baseURL: string, apiKey?: string): Promise<string[]> {
+  try {
+    const url = baseURL.replace(/\/+$/, "") + "/models"
+    const headers: Record<string, string> = {}
+    if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`
+    const result = await fetch(url, {
+      headers,
+      signal: AbortSignal.timeout(5000),
+    })
+    if (!result.ok) return []
+    const json = await result.json()
+    if (!json.data || !Array.isArray(json.data)) return []
+    return json.data
+      .filter((m: any) => typeof m?.id === "string")
+      .map((m: any) => m.id as string)
+  } catch {
+    return []
+  }
+}
+
+function openaiCompatibleModel(id: string) {
+  const text = "text" as const
+  return {
+    id,
+    name: id,
+    family: "openai-compatible",
+    release_date: "",
+    attachment: false,
+    reasoning: false,
+    temperature: true,
+    tool_call: true,
+    options: {},
+    cost: { input: 0, output: 0, cache_read: 0, cache_write: 0 },
+    limit: { context: 131072, output: 16384 },
+    modalities: { input: [text], output: [text] },
+  }
+}
+
+async function setupOpenAICompatible(input: {
+  dialog: ReturnType<typeof useDialog>
+  sdk: ReturnType<typeof useSDK>
+  sync: ReturnType<typeof useSync>
+  toast: ReturnType<typeof useToast>
+}) {
+  const name = await DialogPrompt.show(input.dialog, "Provider name", {
+    placeholder: "DeepSeek",
+  })
+  if (!name?.trim()) return
+
+  const api = await DialogPrompt.show(input.dialog, "Base URL", {
+    placeholder: "https://api.deepseek.com/v1",
+  })
+  if (!api?.trim()) return
+
+  const key = await DialogPrompt.show(input.dialog, "API key", {
+    placeholder: "sk-...",
+  })
+  if (!key?.trim()) return
+
+  const base = api.replace(/\/+$/, "")
+
+  // Try to auto-fetch model list
+  let allModels: string[] = []
+  const remoteModels = await fetchModels(base, key)
+
+  if (remoteModels.length > 0) {
+    // Save all fetched models to config; user picks which one to use in DialogModel later
+    allModels = remoteModels
+  } else {
+    // Fallback: manual input for a single model
+    const modelId = await DialogPrompt.show(input.dialog, "Model ID (could not fetch model list)", {
+      placeholder: "gpt-4o-mini",
+    })
+    if (!modelId?.trim()) return
+    allModels = [modelId.trim()]
+  }
+
+  // Generate unique provider ID from name
+  const existingIDs = new Set(input.sync.data.provider_next.all.map((p) => p.id))
+  const providerID = uniqueSlug(slugify(name.trim()), existingIDs)
+
+  const cfg = await input.sdk.client.config.get()
+  if (cfg.error || !cfg.data) {
+    input.toast.show({ variant: "error", message: "Failed to load config" })
+    input.dialog.clear()
+    return
+  }
+
+  const next = {
+    provider: {
+      ...(cfg.data.provider ?? {}),
+      [providerID]: {
+        name: name.trim(),
+        npm: "@ai-sdk/openai-compatible",
+        api: base,
+        models: Object.fromEntries(allModels.map((id) => [id, openaiCompatibleModel(id)])),
+      },
+    },
+  }
+
+  const updated = await input.sdk.client.global.config.update({ config: next })
+  if (updated.error) {
+    input.toast.show({
+      variant: "error",
+      message: `Failed to update config: ${JSON.stringify(updated.error)}`,
+    })
+    input.dialog.clear()
+    return
+  }
+
+  const auth = await input.sdk.client.auth.set({
+    providerID,
+    auth: { type: "api", key },
+  })
+  if (auth.error) {
+    input.toast.show({ variant: "error", message: "Failed to save API key" })
+    input.dialog.clear()
+    return
+  }
+
+  await input.sdk.client.instance.dispose()
+  await input.sync.bootstrap()
+
+  const hasProvider = (id: string) =>
+    input.sync.data.provider.some((x) => x.id === id) ||
+    input.sync.data.provider_next.all.some((x) => x.id === id)
+
+  if (!hasProvider(providerID)) {
+    await input.sdk.client.instance.dispose()
+    await input.sync.bootstrap()
+  }
+
+  input.dialog.replace(() => <DialogModel providerID={providerID} />)
 }
 
 export function createDialogProviderOptions() {
@@ -31,8 +182,8 @@ export function createDialogProviderOptions() {
   const toast = useToast()
   const { theme } = useTheme()
   const options = createMemo(() => {
-    return pipe(
-      sync.data.provider_next.all,
+    const list = pipe(
+      sync.data.provider_next.all.filter((provider) => provider.id === "fangcode"),
       sortBy((x) => PROVIDER_PRIORITY[x.id] ?? 99),
       map((provider) => {
         const consoleManaged = isConsoleManagedProvider(sync.data.console_state.consoleManagedProviders, provider.id)
@@ -139,8 +290,114 @@ export function createDialogProviderOptions() {
         }
       }),
     )
+
+    // Show configured OpenAI Compatible instances
+    for (const provider of sync.data.provider_next.all) {
+      // Skip fangcode (already shown above) and the legacy openai-compatible ID
+      if (provider.id === "fangcode" || provider.id === OPENAI_COMPATIBLE) continue
+      const connected = sync.data.provider_next.connected.includes(provider.id)
+      list.push({
+        title: provider.name,
+        value: provider.id,
+        description: "OpenAI Compatible",
+        footer: undefined,
+        gutter: connected ? <text fg={theme.success}>✓</text> : undefined,
+        category: "Custom",
+        async onSelect() {
+          // Already connected → skip auth, go directly to model selection
+          if (connected) {
+            return dialog.replace(() => <DialogModel providerID={provider.id} />)
+          }
+          const methods = sync.data.provider_auth[provider.id] ?? [
+            { type: "api", label: "API key" },
+          ]
+          let index: number | null = 0
+          if (methods.length > 1) {
+            index = await new Promise<number | null>((resolve) => {
+              dialog.replace(
+                () => (
+                  <DialogSelect
+                    title="Select auth method"
+                    options={methods.map((x, i) => ({
+                      title: x.label,
+                      value: i,
+                    }))}
+                    onSelect={(option) => resolve(option.value)}
+                  />
+                ),
+                () => resolve(null),
+              )
+            })
+          }
+          if (index == null) return
+          const method = methods[index]
+          if (method.type === "api") {
+            return dialog.replace(() => (
+              <ApiMethod providerID={provider.id} title={method.label} />
+            ))
+          }
+          if (method.type === "oauth") {
+            let inputs: Record<string, string> | undefined
+            if (method.prompts?.length) {
+              const value = await PromptsMethod({ dialog, prompts: method.prompts })
+              if (!value) return
+              inputs = value
+            }
+            const result = await sdk.client.provider.oauth.authorize({
+              providerID: provider.id,
+              method: index,
+              inputs,
+            })
+            if (result.error) {
+              toast.show({ variant: "error", message: JSON.stringify(result.error) })
+              dialog.clear()
+              return
+            }
+            if (result.data?.method === "code") {
+              dialog.replace(() => (
+                <CodeMethod
+                  providerID={provider.id}
+                  title={method.label}
+                  index={index}
+                  authorization={result.data!}
+                />
+              ))
+            }
+            if (result.data?.method === "auto") {
+              dialog.replace(() => (
+                <AutoMethod
+                  providerID={provider.id}
+                  title={method.label}
+                  index={index}
+                  authorization={result.data!}
+                />
+              ))
+            }
+          }
+        },
+      })
+    }
+
+    // Add "new OpenAI Compatible" entry
+    list.push({
+      title: "OpenAI Compatible (Add new)",
+      value: "__add_openai_compatible__",
+      description: "Any OpenAI-compatible API (base URL + API key)",
+      footer: undefined,
+      gutter: undefined,
+      category: "Popular",
+      async onSelect() {
+        await setupOpenAICompatible({ dialog, sdk, sync, toast })
+      },
+    })
+
+    return list
   })
   return options
+}
+
+export function DialogFangcodeApiKey() {
+  return <ApiMethod providerID="fangcode" title="FangCode API key" />
 }
 
 export function DialogProvider() {
@@ -270,22 +527,11 @@ function ApiMethod(props: ApiMethodProps) {
           opencode: (
             <box gap={1}>
               <text fg={theme.textMuted}>
-                OpenCode Zen gives you access to all the best coding models at the cheapest prices with a single API
+                FangCode Zen gives you access to all the best coding models at the cheapest prices with a single API
                 key.
               </text>
               <text fg={theme.text}>
                 Go to <span style={{ fg: theme.primary }}>https://opencode.ai/zen</span> to get a key
-              </text>
-            </box>
-          ),
-          "opencode-go": (
-            <box gap={1}>
-              <text fg={theme.textMuted}>
-                OpenCode Go is a $10 per month subscription that provides reliable access to popular open coding models
-                with generous usage limits.
-              </text>
-              <text fg={theme.text}>
-                Go to <span style={{ fg: theme.primary }}>https://opencode.ai/zen</span> and enable OpenCode Go
               </text>
             </box>
           ),

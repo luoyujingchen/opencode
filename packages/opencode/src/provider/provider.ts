@@ -413,6 +413,7 @@ export namespace Provider {
             }
 
             return sdk.languageModel(modelID)
+
           },
         }
       }),
@@ -421,8 +422,8 @@ export namespace Provider {
           autoload: false,
           options: {
             headers: {
-              "HTTP-Referer": "https://opencode.ai/",
-              "X-Title": "opencode",
+              "HTTP-Referer": "https://fangcode.ai/",
+              "X-Title": "fangcode",
             },
           },
         }),
@@ -450,6 +451,7 @@ export namespace Provider {
             Env.get("VERTEX_LOCATION") ??
             "us-central1",
         )
+
 
         const autoload = Boolean(project)
         if (!autoload) return Effect.succeed({ autoload: false })
@@ -668,6 +670,7 @@ export namespace Provider {
               log.warn("gitlab model discovery failed", { error: e })
               return {}
             }
+
           },
         }
       }),
@@ -689,6 +692,7 @@ export namespace Provider {
             },
           }
 
+
         const apiKey = yield* Effect.gen(function* () {
           const envToken = Env.get("CLOUDFLARE_API_KEY")
           if (envToken) return envToken
@@ -701,7 +705,7 @@ export namespace Provider {
           options: {
             apiKey,
             headers: {
-              "User-Agent": `opencode/${Installation.VERSION} cloudflare-workers-ai (${os.platform()} ${os.release()}; ${os.arch()})`,
+              "User-Agent": `fangcode/${Installation.VERSION} cloudflare-workers-ai (${os.platform()} ${os.release()}; ${os.arch()})`,
             },
           },
           async getModel(sdk: any, modelID: string) {

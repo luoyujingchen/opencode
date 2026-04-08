@@ -23,6 +23,7 @@
     "db": "bun drizzle-kit"
   },
   "bin": {
+    "fangcode": "./bin/opencode",
     "opencode": "./bin/opencode"
   },
   "randomField": "this-is-a-random-value-12345",

@@ -880,6 +880,7 @@ export namespace Session {
     (input) => runPromise((svc) => svc.updatePartDelta(input)),
   )
 
+
   export const initialize = fn(
     z.object({ sessionID: SessionID.zod, modelID: ModelID.zod, providerID: ProviderID.zod, messageID: MessageID.zod }),
     (input) => runPromise((svc) => svc.initialize(input)),
