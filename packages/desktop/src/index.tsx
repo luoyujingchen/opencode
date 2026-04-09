@@ -30,6 +30,7 @@ import { createResource, onCleanup, onMount, Show } from "solid-js"
 import { render } from "solid-js/web"
 import pkg from "../package.json"
 import { initI18n, t } from "./i18n"
+import { cmp, next } from "./release"
 import { UPDATER_ENABLED } from "./updater"
 import { webviewZoom } from "./webview-zoom"
 import "./styles.css"
@@ -286,15 +287,20 @@ const createPlatform = (): Platform => {
 
     checkUpdate: async () => {
       if (!UPDATER_ENABLED) return { updateAvailable: false }
-      const next = await check().catch(() => null)
-      if (!next) return { updateAvailable: false }
-      const ok = await next
+      const ver = await next(pkg.version)
+      if (!ver) return { updateAvailable: false }
+
+      const item = await check().catch(() => null)
+      if (!item?.version) return { updateAvailable: false }
+      if (cmp(item.version, ver) !== 0) return { updateAvailable: false }
+
+      const ok = await item
         .download()
         .then(() => true)
         .catch(() => false)
       if (!ok) return { updateAvailable: false }
-      update = next
-      return { updateAvailable: true, version: next.version }
+      update = item
+      return { updateAvailable: true, version: ver }
     },
 
     update: async () => {
