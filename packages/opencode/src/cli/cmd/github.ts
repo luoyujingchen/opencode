@@ -242,7 +242,7 @@ export const GithubInstallCommand = cmd({
                 `    1. Commit the \`${WORKFLOW_FILE}\` file and push`,
                 step2,
                 "",
-                "    3. Go to a GitHub issue and comment `/oc summarize` to see the agent in action",
+                "    3. Go to a GitHub issue and comment `/fangcode summarize` to see the agent in action",
                 "",
                 "   Learn more about the GitHub agent - https://fangcode.ai/docs/github/#usage-examples",
               ].join("\n"),
@@ -389,10 +389,8 @@ on:
 jobs:
   opencode:
     if: |
-      contains(github.event.comment.body, ' /oc') ||
-      startsWith(github.event.comment.body, '/oc') ||
-      contains(github.event.comment.body, ' /opencode') ||
-      startsWith(github.event.comment.body, '/opencode')
+      contains(github.event.comment.body, ' /fangcode') ||
+      startsWith(github.event.comment.body, '/fangcode')
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -477,7 +475,6 @@ export const GithubRunCommand = cmd({
           : (payload as PullRequestEvent | PullRequestReviewCommentEvent).pull_request.number
       const runUrl = `/${owner}/${repo}/actions/runs/${runId}`
       const shareBaseUrl = isMock ? "https://dev.fangcode.ai" : "https://fangcode.ai"
-
       let appToken: string
       let octoRest: Octokit
       let octoGraph: typeof graphql
@@ -784,7 +781,7 @@ export const GithubRunCommand = cmd({
         }
 
         const reviewContext = getReviewCommentContext()
-        const mentions = (process.env["MENTIONS"] || "/opencode,/oc")
+        const mentions = (process.env["MENTIONS"] ?? "/fangcode")
           .split(",")
           .map((m) => m.trim().toLowerCase())
           .filter(Boolean)
