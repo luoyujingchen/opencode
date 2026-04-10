@@ -6,6 +6,7 @@ import { Decimal } from "decimal.js"
 import z from "zod"
 import { type ProviderMetadata } from "ai"
 import { Config } from "../config/config"
+import { ConfigPaths } from "@/config/paths"
 import { Flag } from "../flag/flag"
 import { Installation } from "../installation"
 
@@ -237,7 +238,7 @@ export namespace Session {
 
   export function plan(input: { slug: string; time: { created: number } }) {
     const base = Instance.project.vcs
-      ? path.join(Instance.worktree, ".opencode", "plans")
+      ? path.join(ConfigPaths.projectDir(Instance.worktree), "plans")
       : path.join(Global.Path.data, "plans")
     return path.join(base, [input.time.created, input.slug].join("-") + ".md")
   }

@@ -1,4 +1,5 @@
 import path from "path"
+import { existsSync } from "fs"
 import os from "os"
 import z from "zod"
 import { type ParseError as JsoncParseError, parse as parseJsonc, printParseErrorCode } from "jsonc-parser"
@@ -41,6 +42,46 @@ export namespace ConfigPaths {
 
   export function fileInDirectory(dir: string, name: string) {
     return [path.join(dir, `${name}.json`), path.join(dir, `${name}.jsonc`)]
+  }
+
+  function has(dir: string) {
+    for (const name of ["opencode", "fangcode", "tui"]) {
+      for (const file of fileInDirectory(dir, name)) {
+        if (existsSync(file)) return true
+      }
+    }
+    for (const name of [
+      "agent",
+      "agents",
+      "command",
+      "commands",
+      "plugin",
+      "plugins",
+      "skill",
+      "skills",
+      "tool",
+      "tools",
+      "themes",
+    ]) {
+      if (existsSync(path.join(dir, name))) return true
+    }
+    return false
+  }
+
+  export function projectDir(root: string) {
+    const fang = path.join(root, ".fangcode")
+    const op = path.join(root, ".opencode")
+    const fangok = existsSync(fang)
+    const opok = existsSync(op)
+    if (fangok && !opok) return fang
+    if (opok && !fangok) return op
+    if (fangok && opok) {
+      const fhas = has(fang)
+      const ohas = has(op)
+      if (fhas && !ohas) return fang
+      if (ohas && !fhas) return op
+    }
+    return op
   }
 
   export const JsonError = NamedError.create(
