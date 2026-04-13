@@ -5,6 +5,11 @@ import { Installation } from "@/installation"
 
 export async function upgrade() {
   const config = await Config.getGlobal()
+
+  // Fully disable update checks when autoupdate is disabled.
+  // This avoids even querying the latest version endpoint.
+  if (Flag.OPENCODE_DISABLE_AUTOUPDATE || config.autoupdate === false) return
+
   const method = await Installation.method()
   const latest = await Installation.latest(method).catch(() => {})
   if (!latest) return
@@ -15,7 +20,6 @@ export async function upgrade() {
   }
 
   if (Installation.VERSION === latest) return
-  if (config.autoupdate === false || Flag.OPENCODE_DISABLE_AUTOUPDATE) return
 
   const kind = Installation.getReleaseType(Installation.VERSION, latest)
 

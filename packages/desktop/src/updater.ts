@@ -2,8 +2,10 @@ import { check } from "@tauri-apps/plugin-updater"
 import { relaunch } from "@tauri-apps/plugin-process"
 import { ask, message } from "@tauri-apps/plugin-dialog"
 import { type as ostype } from "@tauri-apps/plugin-os"
+import pkg from "../package.json"
 
 import { initI18n, t } from "./i18n"
+import { cmp, next } from "./release"
 import { commands } from "./bindings"
 
 export const UPDATER_ENABLED = window.__OPENCODE__?.updaterEnabled ?? false
@@ -11,16 +13,14 @@ export const UPDATER_ENABLED = window.__OPENCODE__?.updaterEnabled ?? false
 export async function runUpdater({ alertOnFail }: { alertOnFail: boolean }) {
   await initI18n()
 
-  let update
-  try {
-    update = await check()
-  } catch {
-    if (alertOnFail)
-      await message(t("desktop.updater.checkFailed.message"), { title: t("desktop.updater.checkFailed.title") })
+  const ver = await next(pkg.version)
+  if (!ver) {
+    if (alertOnFail) await message(t("desktop.updater.none.message"), { title: t("desktop.updater.none.title") })
     return
   }
 
-  if (!update) {
+  const update = await check().catch(() => null)
+  if (!update?.version || cmp(update.version, ver) !== 0) {
     if (alertOnFail) await message(t("desktop.updater.none.message"), { title: t("desktop.updater.none.title") })
     return
   }
@@ -28,8 +28,7 @@ export async function runUpdater({ alertOnFail }: { alertOnFail: boolean }) {
   try {
     await update.download()
   } catch {
-    if (alertOnFail)
-      await message(t("desktop.updater.downloadFailed.message"), { title: t("desktop.updater.downloadFailed.title") })
+    if (alertOnFail) await message(t("desktop.updater.none.message"), { title: t("desktop.updater.none.title") })
     return
   }
 

@@ -25,6 +25,8 @@ await Bun.file(`./dist/${pkg.name}/package.json`).write(
     {
       name: pkg.name + "-ai",
       bin: {
+        fang: `./bin/${pkg.name}`,
+        fangcode: `./bin/${pkg.name}`,
         [pkg.name]: `./bin/${pkg.name}`,
       },
       scripts: {

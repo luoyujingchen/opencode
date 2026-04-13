@@ -34,6 +34,7 @@ import { registerIpcHandlers, sendDeepLinks, sendMenuCommand, sendSqliteMigratio
 import { initLogging } from "./logging"
 import { parseMarkdown } from "./markdown"
 import { createMenu } from "./menu"
+import { cmp, next } from "./release"
 import { getDefaultServerUrl, getWslConfig, setDefaultServerUrl, setWslConfig, spawnLocalServer } from "./server"
 import { createLoadingWindow, createMainWindow, setBackgroundColor, setDockIcon } from "./windows"
 
@@ -329,37 +330,51 @@ let updateReady = false
 async function checkUpdate() {
   if (!UPDATER_ENABLED) return { updateAvailable: false }
   updateReady = false
+  const ver = await next(app.getVersion())
+  if (!ver) {
+    logger.log("no update available", {
+      reason: "xiaofang returned no newer version or was unavailable",
+    })
+    return { updateAvailable: false }
+  }
+
   logger.log("checking for updates", {
     currentVersion: app.getVersion(),
+    releaseVersion: ver,
     channel: autoUpdater.channel,
     allowPrerelease: autoUpdater.allowPrerelease,
     allowDowngrade: autoUpdater.allowDowngrade,
   })
-  try {
-    const result = await autoUpdater.checkForUpdates()
-    const updateInfo = result?.updateInfo
-    logger.log("update metadata fetched", {
-      releaseVersion: updateInfo?.version ?? null,
-      releaseDate: updateInfo?.releaseDate ?? null,
-      releaseName: updateInfo?.releaseName ?? null,
-      files: updateInfo?.files?.map((file) => file.url) ?? [],
-    })
-    const version = result?.updateInfo?.version
-    if (result?.isUpdateAvailable === false || !version) {
-      logger.log("no update available", {
-        reason: "provider returned no newer version",
-      })
-      return { updateAvailable: false }
-    }
-    logger.log("update available", { version })
-    await autoUpdater.downloadUpdate()
-    logger.log("update download completed", { version })
-    updateReady = true
-    return { updateAvailable: true, version }
-  } catch (error) {
+
+  const result = await autoUpdater.checkForUpdates().catch((error) => {
     logger.error("update check failed", error)
-    return { updateAvailable: false, failed: true }
+    return null
+  })
+  const info = result?.updateInfo
+  logger.log("update metadata fetched", {
+    releaseVersion: info?.version ?? null,
+    releaseDate: info?.releaseDate ?? null,
+    releaseName: info?.releaseName ?? null,
+    files: info?.files?.map((file) => file.url) ?? [],
+  })
+
+  const version = info?.version
+  if (!result || result.isUpdateAvailable === false || !version || cmp(version, ver) !== 0) {
+    logger.log("no update available", {
+      reason: "provider returned no matching newer version",
+    })
+    return { updateAvailable: false }
   }
+
+  const ok = await autoUpdater.downloadUpdate().then(() => true).catch((error) => {
+    logger.error("update download failed", error)
+    return false
+  })
+  if (!ok) return { updateAvailable: false }
+
+  logger.log("update download completed", { version })
+  updateReady = true
+  return { updateAvailable: true, version: ver }
 }
 
 async function installUpdate() {
@@ -373,17 +388,6 @@ async function checkForUpdates(alertOnFail: boolean) {
   logger.log("checkForUpdates invoked", { alertOnFail })
   const result = await checkUpdate()
   if (!result.updateAvailable) {
-    if (result.failed) {
-      logger.log("no update decision", { reason: "update check failed" })
-      if (!alertOnFail) return
-      await dialog.showMessageBox({
-        type: "error",
-        message: "Update check failed.",
-        title: "Update Error",
-      })
-      return
-    }
-
     logger.log("no update decision", { reason: "already up to date" })
     if (!alertOnFail) return
     await dialog.showMessageBox({
