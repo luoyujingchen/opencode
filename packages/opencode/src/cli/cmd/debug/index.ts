@@ -12,7 +12,7 @@ import { AgentCommand } from "./agent"
 
 export const DebugCommand = cmd({
   command: "debug",
-  describe: "debugging and troubleshooting tools",
+  describe: false,
   builder: (yargs) =>
     yargs
       .command(ConfigCommand)

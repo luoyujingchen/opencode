@@ -24,8 +24,9 @@ const FILES = [
 
 function globalFiles() {
   const files = []
-  if (Flag.OPENCODE_CONFIG_DIR) {
-    files.push(path.join(Flag.OPENCODE_CONFIG_DIR, "AGENTS.md"))
+  const configDir = Flag.FANG_CONFIG_DIR || Flag.OPENCODE_CONFIG_DIR
+  if (configDir) {
+    files.push(path.join(configDir, "AGENTS.md"))
   }
   files.push(path.join(Global.Path.config, "AGENTS.md"))
   if (!Flag.OPENCODE_DISABLE_CLAUDE_CODE_PROMPT) {
@@ -33,6 +34,7 @@ function globalFiles() {
   }
   return files
 }
+
 
 function extract(messages: MessageV2.WithParts[]) {
   const paths = new Set<string>()
@@ -245,6 +247,7 @@ export namespace Instruction {
   }
 
   export async function systemPaths() {
+
     return runPromise((svc) => svc.systemPaths())
   }
 

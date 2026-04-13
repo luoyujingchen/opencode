@@ -14,6 +14,7 @@ import path from "path"
 import { fileURLToPath } from "url"
 
 import { Config } from "@/config/config"
+import { ConfigPaths } from "@/config/paths"
 import { TuiConfig } from "@/config/tui"
 import { Log } from "@/util/log"
 import { errorData, errorMessage } from "@/util/error"
@@ -156,11 +157,11 @@ function createThemeInstaller(
     const raw = file.startsWith("file://") ? fileURLToPath(file) : file
     const src = path.isAbsolute(raw) ? raw : path.resolve(root, raw)
     const name = path.basename(src, path.extname(src))
-    const source_dir = path.dirname(meta.source)
-    const local_dir =
-      path.basename(source_dir) === ".opencode"
-        ? path.join(source_dir, "themes")
-        : path.join(source_dir, ".opencode", "themes")
+    const base = path.basename(meta.source)
+    const dir = base === ".opencode" || base === ".fangcode" ? meta.source : path.dirname(meta.source)
+    const tag = path.basename(dir)
+    const home = tag === ".opencode" || tag === ".fangcode" ? dir : ConfigPaths.projectDir(dir)
+    const local_dir = path.join(home, "themes")
     const dest_dir = meta.scope === "local" ? local_dir : path.join(Global.Path.config, "themes")
     const dest = path.join(dest_dir, `${name}.json`)
     const stat = await Filesystem.statAsync(src)
@@ -749,7 +750,7 @@ function defaultPluginOrigin(state: RuntimeState, spec: string): Config.PluginOr
   return {
     spec,
     scope: "local",
-    source: state.api.state.path.config || path.join(state.directory, ".opencode", "tui.json"),
+    source: state.api.state.path.config || path.join(ConfigPaths.projectDir(state.directory), "tui.json"),
   }
 }
 

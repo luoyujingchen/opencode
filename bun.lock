@@ -302,6 +302,7 @@
       "name": "opencode",
       "version": "1.4.0",
       "bin": {
+        "fangcode": "./bin/opencode",
         "opencode": "./bin/opencode",
       },
       "dependencies": {

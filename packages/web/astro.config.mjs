@@ -31,7 +31,7 @@ export default defineConfig({
     configSchema(),
     solidJs(),
     starlight({
-      title: "OpenCode",
+      title: "FangCode",
       defaultLocale: "root",
       locales: {
         root: {

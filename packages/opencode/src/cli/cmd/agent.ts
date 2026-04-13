@@ -4,6 +4,7 @@ import { UI } from "../ui"
 import { Global } from "../../global"
 import { Agent } from "../../agent/agent"
 import { Provider } from "../../provider/provider"
+import { ConfigPaths } from "../../config/paths"
 import path from "path"
 import fs from "fs/promises"
 import { Filesystem } from "../../util/filesystem"
@@ -87,7 +88,7 @@ const AgentCreateCommand = cmd({
             scope = scopeResult
           }
           targetPath = path.join(
-            scope === "global" ? Global.Path.config : path.join(Instance.worktree, ".opencode"),
+            scope === "global" ? Global.Path.config : ConfigPaths.projectDir(Instance.worktree),
             "agent",
           )
         }

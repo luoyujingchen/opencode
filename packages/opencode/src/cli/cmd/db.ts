@@ -111,7 +111,7 @@ const MigrateCommand = cmd({
 
 export const DbCommand = cmd({
   command: "db",
-  describe: "database tools",
+  describe: false,
   builder: (yargs: Argv) => {
     return yargs.command(QueryCommand).command(PathCommand).command(MigrateCommand).demandCommand()
   },

@@ -1,7 +1,7 @@
 import { execFileSync, spawn } from "node:child_process"
 import { EventEmitter } from "node:events"
-import { chmodSync, readFileSync, unlinkSync, writeFileSync } from "node:fs"
-import { tmpdir } from "node:os"
+import { chmodSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs"
+import { homedir, tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import readline from "node:readline"
 import { fileURLToPath } from "node:url"
@@ -12,8 +12,9 @@ import { WSL_ENABLED_KEY } from "./constants"
 import { getUserShell, loadShellEnv, mergeShellEnv } from "./shell-env"
 import { store } from "./store"
 
-const CLI_INSTALL_DIR = ".opencode/bin"
-const CLI_BINARY_NAME = "opencode"
+const CLI_INSTALL_DIR = ".fangcode/bin"
+const CLI_BINARY_NAME = "fangcode"
+const ENV_KEY = "HKCU\\Environment"
 
 export type ServerConfig = {
   hostname?: string
@@ -45,8 +46,8 @@ const root = dirname(fileURLToPath(import.meta.url))
 export function getSidecarPath() {
   const suffix = process.platform === "win32" ? ".exe" : ""
   const path = app.isPackaged
-    ? join(process.resourcesPath, `opencode-cli${suffix}`)
-    : join(root, "../../resources", `opencode-cli${suffix}`)
+    ? join(process.resourcesPath, `fangcode-cli${suffix}`)
+    : join(root, "../../resources", `fangcode-cli${suffix}`)
   console.log(`[cli] Sidecar path resolved: ${path} (isPackaged: ${app.isPackaged})`)
   return path
 }
@@ -75,7 +76,7 @@ export async function getConfig(): Promise<Config | null> {
 
 export async function installCli(): Promise<string> {
   if (process.platform === "win32") {
-    throw new Error("CLI installation is only supported on macOS & Linux")
+    return installCliWindows()
   }
 
   const sidecar = getSidecarPath()
@@ -104,6 +105,10 @@ export async function installCli(): Promise<string> {
 
 export function syncCli() {
   if (!app.isPackaged) return
+  if (process.platform === "win32") {
+    void installCli().catch(() => undefined)
+    return
+  }
   const installPath = getCliInstallPath()
   if (!installPath) return
 
@@ -124,7 +129,9 @@ export function syncCli() {
 export function serve(hostname: string, port: number, password: string) {
   const args = `--print-logs --log-level WARN serve --hostname ${hostname} --port ${port}`
   const env = {
-    OPENCODE_SERVER_USERNAME: "opencode",
+    FANG_SERVER_USERNAME: "fangcode",
+    OPENCODE_SERVER_USERNAME: "fangcode",
+    FANG_SERVER_PASSWORD: password,
     OPENCODE_SERVER_PASSWORD: password,
   }
 
@@ -138,8 +145,11 @@ export function spawnCommand(args: string, extraEnv: Record<string, string>) {
   )
   const env = {
     ...base,
+    FANG_EXPERIMENTAL_ICON_DISCOVERY: "true",
     OPENCODE_EXPERIMENTAL_ICON_DISCOVERY: "true",
+    FANG_EXPERIMENTAL_FILEWATCHER: "true",
     OPENCODE_EXPERIMENTAL_FILEWATCHER: "true",
+    FANG_CLIENT: "desktop",
     OPENCODE_CLIENT: "desktop",
     XDG_STATE_HOME: app.getPath("userData"),
     ...extraEnv,
@@ -219,7 +229,10 @@ function buildCommand(args: string, env: Record<string, string>, shell: string |
     const version = app.getVersion()
     const script = [
       "set -e",
-      'BIN="$HOME/.opencode/bin/opencode"',
+      'BIN="$HOME/.fangcode/bin/fangcode"',
+      'if [ ! -x "$BIN" ]; then',
+      '  BIN="$HOME/.opencode/bin/opencode"',
+      "fi",
       'if [ ! -x "$BIN" ]; then',
       `  curl -fsSL https://opencode.ai/install | bash -s -- --version ${shellEscape(version)} --no-modify-path`,
       "fi",
@@ -250,6 +263,135 @@ function envPrefix(env: Record<string, string>) {
 function shellEscape(input: string) {
   if (!input) return "''"
   return `'${input.replace(/'/g, `'"'"'`)}'`
+}
+
+function windowsDir() {
+  const local = process.env.LOCALAPPDATA
+  if (local) return join(local, "fangcode", "bin")
+  return join(homedir(), "AppData", "Local", "fangcode", "bin")
+}
+
+function windowsBody(exe: string) {
+  return `@echo off\r\n"${exe}" %*\r\n`
+}
+
+function npmDir() {
+  for (const cmd of ["npm.cmd", "npm"]) {
+    try {
+      const out = execFileSync(cmd, ["prefix", "-g"], {
+        encoding: "utf8",
+        windowsHide: true,
+      }).trim()
+      if (out) return out
+    } catch {}
+  }
+  const appdata = process.env.APPDATA
+  if (!appdata) return ""
+  return join(appdata, "npm")
+}
+
+function windowsDirs() {
+  const out: string[] = []
+  const list = [npmDir(), windowsDir()]
+  for (const item of list) {
+    if (!item) continue
+    if (out.some((x) => norm(x) === norm(item))) continue
+    out.push(item)
+  }
+  return out
+}
+
+function writeCmd(dir: string, exe: string) {
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+  const body = `\ufeff${windowsBody(exe)}`
+  const main = join(dir, "fangcode.cmd")
+  const alt = join(dir, "fang.cmd")
+  writeFileSync(main, body, "utf16le")
+  writeFileSync(alt, body, "utf16le")
+  return main
+}
+
+function norm(raw: string) {
+  const val = raw.trim().replace(/^"|"$/g, "").replace(/\//g, "\\")
+  if (val.endsWith("\\") && !/^[a-zA-Z]:\\$/.test(val)) return val.slice(0, -1).toLowerCase()
+  return val.toLowerCase()
+}
+
+function split(raw: string) {
+  return raw
+    .split(";")
+    .map((x) => x.trim())
+    .filter(Boolean)
+}
+
+function decode(raw: Buffer) {
+  if (raw.includes(0)) return raw.toString("utf16le")
+  return raw.toString("utf8")
+}
+
+function parsePath(raw: string) {
+  const line = raw
+    .split(/\r?\n/)
+    .map((x) => x.trim())
+    .find((x) => /^path\s+reg_\w+\s+/i.test(x))
+  if (!line) return ""
+  const match = line.match(/^path\s+reg_\w+\s+(.*)$/i)
+  if (!match) return ""
+  return match[1]?.trim() ?? ""
+}
+
+function readPath() {
+  try {
+    const out = execFileSync("reg.exe", ["query", ENV_KEY, "/v", "Path"], { windowsHide: true })
+    return parsePath(decode(out))
+  } catch {
+    return ""
+  }
+}
+
+function writePath(raw: string) {
+  execFileSync("reg.exe", ["add", ENV_KEY, "/v", "Path", "/t", "REG_EXPAND_SZ", "/d", raw, "/f"], {
+    windowsHide: true,
+  })
+}
+
+function addPath(dir: string) {
+  const raw = readPath()
+  const list = split(raw)
+  const next = [dir, ...list.filter((x) => norm(x) !== norm(dir))]
+  if (next.join(";") !== list.join(";")) {
+    writePath(next.join(";"))
+  }
+
+  const env = split(process.env.PATH ?? "")
+  const has = env.some((x) => norm(x) === norm(dir))
+  if (has) return
+  process.env.PATH = process.env.PATH ? `${dir};${process.env.PATH}` : dir
+}
+
+function installCliWindows() {
+  const exe = getSidecarPath()
+  if (!existsSync(exe)) {
+    throw new Error(`CLI binary not found: ${exe}`)
+  }
+
+  const list = windowsDirs()
+  let file = ""
+  const err: string[] = []
+  for (const dir of list) {
+    try {
+      const next = writeCmd(dir, exe)
+      try {
+        addPath(dir)
+      } catch {}
+      if (!file) file = next
+    } catch (e) {
+      err.push(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  if (file) return file
+  throw new Error(err.join("; "))
 }
 
 function getCliInstallPath() {

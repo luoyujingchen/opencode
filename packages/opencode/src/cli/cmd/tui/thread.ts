@@ -16,12 +16,37 @@ import { win32DisableProcessedInput, win32InstallCtrlCGuard } from "./win32"
 import { TuiConfig } from "@/config/tui"
 import { Instance } from "@/project/instance"
 import { writeHeapSnapshot } from "v8"
+import os from "os"
 
 declare global {
   const OPENCODE_WORKER_PATH: string
 }
 
 type RpcClient = ReturnType<typeof Rpc.client<typeof rpc>>
+
+function lang() {
+  const raw =
+    process.env.FANG_LANG ??
+    process.env.OPENCODE_LANG ??
+    process.env.LC_ALL ??
+    process.env.LANG ??
+    Intl.DateTimeFormat().resolvedOptions().locale ??
+    "en"
+  const val = raw.toLowerCase()
+  if (val.startsWith("zh")) return "zh" as const
+  return "en" as const
+}
+
+function text() {
+  if (lang() === "zh") {
+    return {
+      chdirFail: (dir: string) => `切换目录失败: ${dir}`,
+    }
+  }
+  return {
+    chdirFail: (dir: string) => `Failed to change directory to ${dir}`,
+  }
+}
 
 function createWorkerFetch(client: RpcClient): typeof fetch {
   const fn = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
@@ -73,14 +98,23 @@ async function input(value?: string) {
   return piped + "\n" + value
 }
 
+function useHome(input: { project?: string }) {
+  if (process.platform !== "win32") return false
+  if (input.project) return false
+  if (!process.stdin.isTTY) return false
+  const cwd = Filesystem.resolve(process.cwd())
+  const exe = Filesystem.resolve(path.dirname(process.execPath))
+  return cwd === exe
+}
+
 export const TuiThreadCommand = cmd({
   command: "$0 [project]",
-  describe: "start opencode tui",
+  describe: "start fang tui",
   builder: (yargs) =>
     withNetworkOptions(yargs)
       .positional("project", {
         type: "string",
-        describe: "path to start opencode in",
+        describe: "path to start fang in",
       })
       .option("model", {
         type: "string",
@@ -129,12 +163,15 @@ export const TuiThreadCommand = cmd({
       const root = Filesystem.resolve(process.env.PWD ?? process.cwd())
       const next = args.project
         ? Filesystem.resolve(path.isAbsolute(args.project) ? args.project : path.join(root, args.project))
+        : useHome({ project: args.project })
+          ? Filesystem.resolve(os.homedir())
         : Filesystem.resolve(process.cwd())
       const file = await target()
+      const t = text()
       try {
         process.chdir(next)
       } catch {
-        UI.error("Failed to change directory to " + next)
+        UI.error(t.chdirFail(next))
         return
       }
       const cwd = Filesystem.resolve(process.cwd())

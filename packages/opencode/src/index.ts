@@ -29,6 +29,7 @@ import { WebCommand } from "./cli/cmd/web"
 import { PrCommand } from "./cli/cmd/pr"
 import { SessionCommand } from "./cli/cmd/session"
 import { DbCommand } from "./cli/cmd/db"
+import { ContextMenuAuto, ContextMenuCommand } from "./cli/cmd/context-menu"
 import path from "path"
 import { Global } from "./global"
 import { JsonMigration } from "./storage/json-migration"
@@ -36,6 +37,8 @@ import { Database } from "./storage/db"
 import { errorMessage } from "./util/error"
 import { PluginCommand } from "./cli/cmd/plug"
 import { Heap } from "./cli/heap"
+
+const startup = Log.create({ service: "startup" })
 
 process.on("unhandledRejection", (e) => {
   Log.Default.error("rejection", {
@@ -63,7 +66,7 @@ function show(out: string) {
 
 const cli = yargs(args)
   .parserConfiguration({ "populate--": true })
-  .scriptName("opencode")
+  .scriptName("fang")
   .wrap(100)
   .help("help", "show help")
   .alias("help", "h")
@@ -87,6 +90,7 @@ const cli = yargs(args)
       process.env.OPENCODE_PURE = "1"
     }
 
+    const begin = Date.now()
     await Log.init({
       print: process.argv.includes("--print-logs"),
       dev: Installation.isLocal(),
@@ -100,16 +104,42 @@ const cli = yargs(args)
     Heap.start()
 
     process.env.AGENT = "1"
+    process.env.FANG = "1"
     process.env.OPENCODE = "1"
+    process.env.FANG_PID = String(process.pid)
     process.env.OPENCODE_PID = String(process.pid)
 
-    Log.Default.info("opencode", {
+    Log.Default.info("fangcode", {
       version: Installation.VERSION,
       args: process.argv.slice(2),
     })
+    startup.info("middleware init", {
+      pid: process.pid,
+      cwd: process.cwd(),
+      exec: process.execPath,
+    })
 
-    const marker = path.join(Global.Path.data, "opencode.db")
+    if (process.platform === "win32") {
+      const now = Date.now()
+      void ContextMenuAuto.ensure(process.execPath)
+        .then(() => {
+          startup.info("context menu ensure", {
+            duration: Date.now() - now,
+            mode: "background",
+          })
+        })
+        .catch((err) => {
+          startup.warn("context menu ensure failed", {
+            duration: Date.now() - now,
+            mode: "background",
+            error: err instanceof Error ? err.message : String(err),
+          })
+        })
+    }
+
+    const marker = Database.Path
     if (!(await Filesystem.exists(marker))) {
+      const now = Date.now()
       const tty = process.stderr.isTTY
       process.stderr.write("Performing one time database migration, may take a few minutes..." + EOL)
       const width = 36
@@ -143,7 +173,14 @@ const cli = yargs(args)
         }
       }
       process.stderr.write("Database migration complete." + EOL)
+      startup.info("json migration", {
+        duration: Date.now() - now,
+      })
     }
+    startup.info("middleware ready", {
+      duration: Date.now() - begin,
+      log: Log.file(),
+    })
   })
   .usage("")
   .completion("completion", "generate shell completion script")
@@ -170,6 +207,7 @@ const cli = yargs(args)
   .command(SessionCommand)
   .command(PluginCommand)
   .command(DbCommand)
+  .command(ContextMenuCommand)
   .fail((msg, err) => {
     if (
       msg?.startsWith("Unknown argument") ||
