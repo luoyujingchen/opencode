@@ -13,6 +13,13 @@ import { Log } from "../../util/log"
 
 const log = Log.create({ service: "server" })
 
+const ALLOW = new Set(["fangcode"])
+const ALLOW_PREFIXES = ["custom-"]
+
+function isAllowed(id: string) {
+  return ALLOW.has(id) || ALLOW_PREFIXES.some((p) => id.startsWith(p))
+}
+
 export const ProviderRoutes = lazy(() =>
   new Hono()
     .get(
@@ -46,12 +53,15 @@ export const ProviderRoutes = lazy(() =>
         const allProviders = await ModelsDev.get()
         const filteredProviders: Record<string, (typeof allProviders)[string]> = {}
         for (const [key, value] of Object.entries(allProviders)) {
+          if (!isAllowed(key)) continue
           if ((enabled ? enabled.has(key) : true) && !disabled.has(key)) {
             filteredProviders[key] = value
           }
         }
 
-        const connected = await Provider.list()
+        const connected = Object.fromEntries(
+          Object.entries(await Provider.list()).filter(([key]) => isAllowed(key)),
+        )
         const providers = Object.assign(
           mapValues(filteredProviders, (x) => Provider.fromModelsDevProvider(x)),
           connected,

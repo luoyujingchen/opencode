@@ -220,7 +220,7 @@ function normalizePath(input?: string) {
 
 export const RunCommand = cmd({
   command: "run [message..]",
-  describe: "run opencode with a message",
+  describe: "run fang with a message",
   builder: (yargs: Argv) => {
     return yargs
       .positional("message", {
@@ -278,12 +278,12 @@ export const RunCommand = cmd({
       })
       .option("attach", {
         type: "string",
-        describe: "attach to a running opencode server (e.g., http://localhost:4096)",
+        describe: "attach to a running fangcode server (e.g., http://localhost:4096)",
       })
       .option("password", {
         alias: ["p"],
         type: "string",
-        describe: "basic auth password (defaults to OPENCODE_SERVER_PASSWORD)",
+        describe: "basic auth password (defaults to FANG_SERVER_PASSWORD)",
       })
       .option("dir", {
         type: "string",
@@ -667,9 +667,9 @@ export const RunCommand = cmd({
 
     if (args.attach) {
       const headers = (() => {
-        const password = args.password ?? process.env.OPENCODE_SERVER_PASSWORD
+        const password = args.password ?? process.env.FANG_SERVER_PASSWORD ?? process.env.OPENCODE_SERVER_PASSWORD
         if (!password) return undefined
-        const username = process.env.OPENCODE_SERVER_USERNAME ?? "opencode"
+        const username = process.env.FANG_SERVER_USERNAME ?? process.env.OPENCODE_SERVER_USERNAME ?? "fangcode"
         const auth = `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`
         return { Authorization: auth }
       })()

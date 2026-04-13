@@ -9,6 +9,12 @@ import { Log } from "../../util/log"
 import { lazy } from "../../util/lazy"
 
 const log = Log.create({ service: "server" })
+const ALLOW = new Set(["fangcode"])
+const ALLOW_PREFIXES = ["custom-"]
+
+function isAllowed(id: string) {
+  return ALLOW.has(id) || ALLOW_PREFIXES.some((p) => id.startsWith(p))
+}
 
 export const ConfigRoutes = lazy(() =>
   new Hono()
@@ -16,7 +22,7 @@ export const ConfigRoutes = lazy(() =>
       "/",
       describeRoute({
         summary: "Get configuration",
-        description: "Retrieve the current OpenCode configuration settings and preferences.",
+        description: "Retrieve the current FangCode configuration settings and preferences.",
         operationId: "config.get",
         responses: {
           200: {
@@ -37,7 +43,7 @@ export const ConfigRoutes = lazy(() =>
       "/",
       describeRoute({
         summary: "Update configuration",
-        description: "Update OpenCode configuration settings and preferences.",
+        description: "Update FangCode configuration settings and preferences.",
         operationId: "config.update",
         responses: {
           200: {
@@ -82,7 +88,9 @@ export const ConfigRoutes = lazy(() =>
       }),
       async (c) => {
         using _ = log.time("providers")
-        const providers = await Provider.list().then((x) => mapValues(x, (item) => item))
+        const providers = Object.fromEntries(
+          Object.entries(await Provider.list()).filter(([key]) => isAllowed(key)),
+        )
         return c.json({
           providers: Object.values(providers),
           default: mapValues(providers, (item) => Provider.sort(Object.values(item.models))[0].id),

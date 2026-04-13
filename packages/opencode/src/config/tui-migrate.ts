@@ -12,7 +12,7 @@ import { Global } from "@/global"
 
 const log = Log.create({ service: "tui.migrate" })
 
-const TUI_SCHEMA_URL = "https://opencode.ai/tui.json"
+const TUI_SCHEMA_URL = "https://fangcode.ai/tui.json"
 
 const LegacyTheme = TuiInfo.shape.theme.optional()
 const LegacyRecord = z.record(z.string(), z.unknown()).optional()
@@ -135,14 +135,25 @@ async function backupAndStripLegacy(file: string, source: string) {
 }
 
 async function opencodeFiles(input: { directories: string[]; managed: string }) {
-  const project = Flag.OPENCODE_DISABLE_PROJECT_CONFIG
-    ? []
-    : await ConfigPaths.projectFiles("opencode", Instance.directory, Instance.worktree)
-  const files = [...project, ...ConfigPaths.fileInDirectory(Global.Path.config, "opencode")]
+  const project =
+    Flag.OPENCODE_DISABLE_PROJECT_CONFIG || Flag.FANG_DISABLE_PROJECT_CONFIG
+      ? []
+      : [
+          ...(await ConfigPaths.projectFiles("fangcode", Instance.directory, Instance.worktree)),
+          ...(await ConfigPaths.projectFiles("opencode", Instance.directory, Instance.worktree)),
+        ]
+  const files = [
+    ...project,
+    ...ConfigPaths.fileInDirectory(Global.Path.config, "fangcode"),
+    ...ConfigPaths.fileInDirectory(Global.Path.config, "opencode"),
+  ]
   for (const dir of unique(input.directories)) {
+    files.push(...ConfigPaths.fileInDirectory(dir, "fangcode"))
     files.push(...ConfigPaths.fileInDirectory(dir, "opencode"))
   }
-  if (Flag.OPENCODE_CONFIG) files.push(Flag.OPENCODE_CONFIG)
+  const customConfig = Flag.FANG_CONFIG || Flag.OPENCODE_CONFIG
+  if (customConfig) files.push(customConfig)
+  files.push(...ConfigPaths.fileInDirectory(input.managed, "fangcode"))
   files.push(...ConfigPaths.fileInDirectory(input.managed, "opencode"))
 
   const existing = await Promise.all(

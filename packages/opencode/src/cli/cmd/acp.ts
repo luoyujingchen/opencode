@@ -11,7 +11,7 @@ const log = Log.create({ service: "acp-command" })
 
 export const AcpCommand = cmd({
   command: "acp",
-  describe: "start ACP (Agent Client Protocol) server",
+  describe: false,
   builder: (yargs) => {
     return withNetworkOptions(yargs).option("cwd", {
       describe: "working directory",
@@ -20,6 +20,7 @@ export const AcpCommand = cmd({
     })
   },
   handler: async (args) => {
+    process.env.FANG_CLIENT = "acp"
     process.env.OPENCODE_CLIENT = "acp"
     await bootstrap(process.cwd(), async () => {
       const opts = await resolveNetworkOptions(args)

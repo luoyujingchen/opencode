@@ -17,7 +17,10 @@ import { SessionShareTable } from "./share.sql"
 
 export namespace ShareNext {
   const log = Log.create({ service: "share-next" })
-  const disabled = process.env["OPENCODE_DISABLE_SHARE"] === "true" || process.env["OPENCODE_DISABLE_SHARE"] === "1"
+  const disabled = (() => {
+    const val = process.env["FANG_DISABLE_SHARE"] ?? process.env["OPENCODE_DISABLE_SHARE"]
+    return val === "true" || val === "1"
+  })()
 
   export type Api = {
     create: string

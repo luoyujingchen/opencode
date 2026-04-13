@@ -260,7 +260,7 @@ export namespace MCP {
           (t) =>
             Effect.tryPromise({
               try: () => {
-                const client = new Client({ name: "opencode", version: Installation.VERSION })
+                const client = new Client({ name: "fangcode", version: Installation.VERSION })
                 return withTimeout(client.connect(t), timeout).then(() => client)
               },
               catch: (e) => (e instanceof Error ? e : new Error(String(e))),
