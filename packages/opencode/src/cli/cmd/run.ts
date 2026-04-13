@@ -247,10 +247,6 @@ export const RunCommand = cmd({
         describe: "fork the session before continuing (requires --continue or --session)",
         type: "boolean",
       })
-      .option("share", {
-        type: "boolean",
-        describe: "share the session",
-      })
       .option("model", {
         type: "string",
         alias: ["m"],
@@ -637,7 +633,6 @@ export const RunCommand = cmd({
         UI.error("Session not found")
         process.exit(1)
       }
-      await share(sdk, sessionID)
 
       loop().catch((e) => {
         console.error(e)
