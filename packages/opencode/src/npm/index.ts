@@ -8,6 +8,7 @@ import { readdir, rm } from "fs/promises"
 import { Filesystem } from "@/util/filesystem"
 import { Flock } from "@/util/flock"
 import { Arborist } from "@npmcli/arborist"
+import { errorMessage } from "@/util/error"
 
 export namespace Npm {
   const log = Log.create({ service: "npm" })
@@ -180,8 +181,12 @@ export namespace Npm {
     if (bin) return path.join(binDir, bin)
 
     await rm(path.join(dir, "package-lock.json"), { force: true })
-    await add(pkg)
-    const resolved = await pick()
+    const resolved = await add(pkg)
+      .then(() => pick())
+      .catch((err) => {
+        log.warn("failed to install package", { pkg, err: errorMessage(err) })
+        return undefined
+      })
     if (!resolved) return
     return path.join(binDir, resolved)
   }
