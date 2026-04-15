@@ -14,12 +14,15 @@ for (const filepath of new Bun.Glob("*/package.json").scanSync({ cwd: "./dist" }
 }
 
 if (Object.keys(binaries).length === 0) {
-  throw new Error("No platform binaries found in ./dist. Run build first, for example: bun run script/build.ts --single")
+  throw new Error(
+    "No platform binaries found in ./dist. Run build first, for example: bun run script/build.ts --single",
+  )
 }
 
 const version = Object.values(binaries)[0]
-const name = pkg.name
-const root = `./dist/${name}`
+const base = "fangcode"
+const bin = "fangcode"
+const root = `./dist/${base}`
 
 await rm(root, { recursive: true, force: true })
 await mkdir(root, { recursive: true })
@@ -30,12 +33,11 @@ await Bun.file(`${root}/LICENSE`).write(await Bun.file("../../LICENSE").text())
 const map = { win32: "windows", darwin: "darwin", linux: "linux" } as const
 const os = map[process.platform as keyof typeof map]
 const cpu = process.arch
-const key = Object.keys(binaries).find((x) => x.startsWith(`${name}-${os}-${cpu}`)) ?? Object.keys(binaries)[0]
+const key = Object.keys(binaries).find((x) => x.startsWith(`${base}-${os}-${cpu}`)) ?? Object.keys(binaries)[0]
 const ext = key.includes("windows") ? ".exe" : ""
-const file = `./dist/${key}/bin/${name}${ext}`
+const file = `./dist/${key}/bin/${bin}${ext}`
 if (await Bun.file(file).exists()) {
   await Bun.write(`${root}/bin/.fangcode${ext}`, await Bun.file(file).bytes())
-  await Bun.write(`${root}/bin/.opencode${ext}`, await Bun.file(file).bytes())
   console.log(`Embedded binary: ${file}`)
 } else {
   console.warn(`Binary not found for embed: ${file}`)
@@ -44,11 +46,10 @@ if (await Bun.file(file).exists()) {
 await Bun.file(`${root}/package.json`).write(
   JSON.stringify(
     {
-      name: `fang-cli`,
+      name: "fangcode",
       bin: {
-        fang: `./bin/${name}`,
-        fangcode: `./bin/${name}`,
-        [name]: `./bin/${name}`,
+        fang: "./bin/fangcode",
+        fangcode: "./bin/fangcode",
       },
       scripts: {
         postinstall: "bun ./postinstall.mjs || node ./postinstall.mjs",

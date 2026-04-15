@@ -8,10 +8,10 @@
             "FANGCODE_API_KEY"
         ],
         "models": {
-            "code-auto": {
-                "id": "code-auto",
-                "name": "code-auto",
-                "family": "code-auto",
+            "qwen3.5-35b-a3b-gptq-int4": {
+                "id": "qwen3.5-35b-a3b-gptq-int4",
+                "name": "qwen3.5-35b-a3b-gptq-int4",
+                "family": "qwen3.5-35b-a3b-gptq-int4",
                 "release_date": "2026-01-01",
                 "attachment": false,
                 "reasoning": false,
@@ -23,8 +23,8 @@
                     "output": 0
                 },
                 "limit": {
-                    "context": 131072,
-                    "output": 16384
+                    "context": 128000,
+                    "output": 8192
                 },
                 "modalities": {
                     "input": [
