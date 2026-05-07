@@ -11,7 +11,7 @@
             "qwen3.5-35b-a3b-gptq-int4": {
                 "id": "qwen3.5-35b-a3b-gptq-int4",
                 "name": "qwen3.5-35b-a3b-gptq-int4",
-                "family": "qwen3.5-35b-a3b-gptq-int4",
+                "family": "openai-compatible",
                 "release_date": "2026-01-01",
                 "attachment": false,
                 "reasoning": false,
@@ -23,8 +23,35 @@
                     "output": 0
                 },
                 "limit": {
-                    "context": 128000,
-                    "output": 8192
+                    "context": 131072,
+                    "output": 16384
+                },
+                "modalities": {
+                    "input": [
+                        "text"
+                    ],
+                    "output": [
+                        "text"
+                    ]
+                }
+            },
+            "glm-5": {
+                "id": "glm-5",
+                "name": "glm-5",
+                "family": "openai-compatible",
+                "release_date": "2026-01-01",
+                "attachment": false,
+                "reasoning": false,
+                "temperature": true,
+                "tool_call": true,
+                "options": {},
+                "cost": {
+                    "input": 0,
+                    "output": 0
+                },
+                "limit": {
+                    "context": 131072,
+                    "output": 16384
                 },
                 "modalities": {
                     "input": [

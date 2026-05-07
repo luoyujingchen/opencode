@@ -1,7 +1,7 @@
 import { useRenderer } from "@opentui/solid"
 import { createSimpleContext } from "./helper"
 import { FormatError, FormatUnknownError } from "@/cli/error"
-import { win32FlushInputBuffer } from "../win32"
+import { win32FlushInputBuffer, win32MarkExiting } from "../win32"
 type Exit = ((reason?: unknown) => Promise<void>) & {
   message: {
     set: (value?: string) => () => void
@@ -32,6 +32,7 @@ export const { use: useExit, provider: ExitProvider } = createSimpleContext({
     const exit: Exit = Object.assign(
       (reason?: unknown) => {
         if (task) return task
+        win32MarkExiting()
         task = (async () => {
           await input.onBeforeExit?.()
           // Reset window title before destroying renderer
@@ -55,6 +56,9 @@ export const { use: useExit, provider: ExitProvider } = createSimpleContext({
       },
     )
     process.on("SIGHUP", () => exit())
+    if (process.platform === "win32") {
+      process.on("SIGINT", () => exit())
+    }
     return exit
   },
 })

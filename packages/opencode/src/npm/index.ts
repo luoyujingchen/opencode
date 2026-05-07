@@ -13,6 +13,7 @@ import { errorMessage } from "@/util/error"
 export namespace Npm {
   const log = Log.create({ service: "npm" })
   const illegal = process.platform === "win32" ? new Set(["<", ">", ":", '"', "|", "?", "*"]) : undefined
+  const registry = process.env.npm_config_registry || "https://registry.npmjs.org"
 
   export const InstallFailedError = NamedError.create(
     "NpmInstallFailedError",
@@ -43,7 +44,8 @@ export namespace Npm {
   }
 
   export async function outdated(pkg: string, cachedVersion: string): Promise<boolean> {
-    const response = await fetch(`https://registry.npmjs.org/${pkg}`)
+    const registry = process.env.npm_config_registry || "https://registry.npmjs.org"
+    const response = await fetch(`${registry.replace(/\/+$/, "")}/${pkg}`)
     if (!response.ok) {
       log.warn("Failed to resolve latest version, using cached", { pkg, cachedVersion })
       return false
@@ -75,6 +77,7 @@ export namespace Npm {
       progress: false,
       savePrefix: "",
       ignoreScripts: true,
+      registry,
     })
     const tree = await arborist.loadVirtual().catch(() => {})
     if (tree) {
@@ -115,6 +118,7 @@ export namespace Npm {
         progress: false,
         savePrefix: "",
         ignoreScripts: true,
+        registry,
       })
       await arb.reify().catch(() => {})
     }

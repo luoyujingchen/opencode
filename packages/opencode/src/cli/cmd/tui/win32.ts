@@ -53,6 +53,11 @@ export function win32FlushInputBuffer() {
 }
 
 let unhook: (() => void) | undefined
+let exiting = false
+
+export function win32MarkExiting() {
+  exiting = true
+}
 
 /**
  * Keep ENABLE_PROCESSED_INPUT disabled.
@@ -121,7 +126,9 @@ export function win32InstallCtrlCGuard() {
       stdin.setRawMode = original
     }
 
-    k32!.symbols.SetConsoleMode(handle, initial)
+    if (!exiting) {
+      k32!.symbols.SetConsoleMode(handle, initial)
+    }
     unhook = undefined
   }
 
