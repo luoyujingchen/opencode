@@ -20,8 +20,6 @@ import { TuiThreadCommand } from "./cli/cmd/tui/thread"
 import { EOL } from "os"
 import { WebCommand } from "./cli/cmd/web"
 import { SessionCommand } from "./cli/cmd/session"
-import path from "path"
-import { Global } from "./global"
 import { JsonMigration } from "./storage/json-migration"
 import { Database } from "./storage/db"
 import { errorMessage } from "./util/error"
@@ -102,7 +100,7 @@ const cli = yargs(args)
       args: process.argv.slice(2),
     })
 
-    const marker = path.join(Global.Path.data, "fangcode.db")
+    const marker = Database.Path
     if (!(await Filesystem.exists(marker))) {
       const tty = process.stderr.isTTY
       process.stderr.write("Performing one time database migration, may take a few minutes..." + EOL)

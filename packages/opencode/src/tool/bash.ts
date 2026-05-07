@@ -274,6 +274,18 @@ function preview(text: string) {
   return text.slice(0, MAX_METADATA_LENGTH) + "\n\n..."
 }
 
+function blocked(root: Node) {
+  for (const node of commands(root)) {
+    const cmd = parts(node)[0]?.text
+    if (!cmd) continue
+    const norm = unquote(cmd).trim().toLowerCase().replaceAll("\\", "/")
+    const base = path.posix.basename(norm)
+    const item = base.endsWith(".exe") ? base.slice(0, -4) : base
+    if (item === "gh") return true
+  }
+  return false
+}
+
 async function parse(command: string, ps: boolean) {
   const tree = await parser().then((p) => (ps ? p.ps : p.bash).parse(command))
   if (!tree) throw new Error("Failed to parse command")
@@ -477,6 +489,9 @@ export const BashTool = Tool.define("bash", async () => {
       const timeout = params.timeout ?? DEFAULT_TIMEOUT
       const ps = PS.has(name)
       const root = await parse(params.command, ps)
+      if (blocked(root)) {
+        throw new Error("GitHub CLI is disabled. gh commands are not allowed.")
+      }
       const scan = await collect(root, cwd, ps, shell)
       if (!Instance.containsPath(cwd)) scan.dirs.add(cwd)
       await ask(ctx, scan)

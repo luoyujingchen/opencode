@@ -127,12 +127,18 @@ export namespace Ripgrep {
     }),
   )
 
+  const bundledName = process.platform === "win32" ? "rg.exe" : `rg-${process.platform}`
+  const bundled = path.join(path.dirname(process.execPath), bundledName)
+
   const state = lazy(async () => {
     const system = which("rg")
     if (system) {
       const stat = await fs.stat(system).catch(() => undefined)
       if (stat?.isFile()) return { filepath: system }
       log.warn("bun.which returned invalid rg path", { filepath: system })
+    }
+    if (await Filesystem.exists(bundled)) {
+      return { filepath: bundled }
     }
     const filepath = path.join(Global.Path.bin, "rg" + (process.platform === "win32" ? ".exe" : ""))
 

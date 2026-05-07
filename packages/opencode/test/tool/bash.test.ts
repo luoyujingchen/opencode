@@ -177,6 +177,27 @@ describe("tool.bash permissions", () => {
     })
   })
 
+  each("blocks github cli commands", async () => {
+    await using tmp = await tmpdir()
+    await Instance.provide({
+      directory: tmp.path,
+      fn: async () => {
+        const bash = await BashTool.init()
+        const requests: Array<Omit<Permission.Request, "id" | "sessionID" | "tool">> = []
+        await expect(
+          bash.execute(
+            {
+              command: "gh pr view 123",
+              description: "Inspect pull request",
+            },
+            capture(requests),
+          ),
+        ).rejects.toThrow("GitHub CLI is disabled")
+        expect(requests).toHaveLength(0)
+      },
+    })
+  })
+
   for (const item of ps) {
     test(
       `parses PowerShell conditionals for permission prompts [${item.label}]`,
