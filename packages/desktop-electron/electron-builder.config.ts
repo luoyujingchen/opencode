@@ -100,7 +100,7 @@ function getConfig() {
         appId: "ai.fangcode.desktop.beta",
         productName: "FangCode Beta",
         protocols: { name: "FangCode Beta", schemes: ["fangcode", "opencode"] },
-        publish: { provider: "github", owner: "anomalyco", repo: "fangcode-beta", channel: "latest" },
+        publish: { provider: "github-bak" as any, owner: "anomalyco", repo: "fangcode-beta", channel: "latest" },
         rpm: { packageName: "fangcode-beta" },
       }
     }
@@ -110,7 +110,7 @@ function getConfig() {
         appId: "ai.fangcode.desktop",
         productName: "FangCode",
         protocols: { name: "FangCode", schemes: ["fangcode", "opencode"] },
-        publish: { provider: "github", owner: "anomalyco", repo: "fangcode", channel: "latest" },
+        publish: { provider: "github-bak" as any, owner: "anomalyco", repo: "fangcode", channel: "latest" },
         rpm: { packageName: "fangcode" },
       }
     }

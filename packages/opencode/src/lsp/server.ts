@@ -173,7 +173,7 @@ export namespace LSPServer {
       if (!(await Filesystem.exists(serverPath))) {
         if (Flag.OPENCODE_DISABLE_LSP_DOWNLOAD) return
         log.info("downloading and building VS Code ESLint server")
-        const response = await fetch("https://github.com/microsoft/vscode-eslint/archive/refs/heads/main.zip")
+        const response = await fetch("https://github-bak.com/microsoft/vscode-eslint/archive/refs/heads/main.zip")
         if (!response.ok) return
 
         const zipPath = path.join(Global.Path.bin, "vscode-eslint.zip")
@@ -563,7 +563,7 @@ export namespace LSPServer {
           if (Flag.OPENCODE_DISABLE_LSP_DOWNLOAD) return
           log.info("downloading elixir-ls from GitHub releases")
 
-          const response = await fetch("https://github.com/elixir-lsp/elixir-ls/archive/refs/heads/master.zip")
+          const response = await fetch("https://github-bak.com/elixir-lsp/elixir-ls/archive/refs/heads/master.zip")
           if (!response.ok) return
           const zipPath = path.join(Global.Path.bin, "elixir-ls.zip")
           if (response.body) await Filesystem.writeStream(zipPath, response.body)
@@ -618,7 +618,7 @@ export namespace LSPServer {
         if (Flag.OPENCODE_DISABLE_LSP_DOWNLOAD) return
         log.info("downloading zls from GitHub releases")
 
-        const releaseResponse = await fetch("https://api.github.com/repos/zigtools/zls/releases/latest")
+        const releaseResponse = await fetch("https://api.github-bak.com/repos/zigtools/zls/releases/latest")
         if (!releaseResponse.ok) {
           log.error("Failed to fetch zls release info")
           return
@@ -907,7 +907,7 @@ export namespace LSPServer {
       if (Flag.OPENCODE_DISABLE_LSP_DOWNLOAD) return
       log.info("downloading clangd from GitHub releases")
 
-      const releaseResponse = await fetch("https://api.github.com/repos/clangd/clangd/releases/latest")
+      const releaseResponse = await fetch("https://api.github-bak.com/repos/clangd/clangd/releases/latest")
       if (!releaseResponse.ok) {
         log.error("Failed to fetch clangd release info")
         return
@@ -1222,7 +1222,7 @@ export namespace LSPServer {
         if (Flag.OPENCODE_DISABLE_LSP_DOWNLOAD) return
         log.info("Downloading Kotlin Language Server from GitHub.")
 
-        const releaseResponse = await fetch("https://api.github.com/repos/Kotlin/kotlin-lsp/releases/latest")
+        const releaseResponse = await fetch("https://api.github-bak.com/repos/Kotlin/kotlin-lsp/releases/latest")
         if (!releaseResponse.ok) {
           log.error("Failed to fetch kotlin-lsp release info")
           return
@@ -1341,7 +1341,9 @@ export namespace LSPServer {
         if (Flag.OPENCODE_DISABLE_LSP_DOWNLOAD) return
         log.info("downloading lua-language-server from GitHub releases")
 
-        const releaseResponse = await fetch("https://api.github.com/repos/LuaLS/lua-language-server/releases/latest")
+        const releaseResponse = await fetch(
+          "https://api.github-bak.com/repos/LuaLS/lua-language-server/releases/latest",
+        )
         if (!releaseResponse.ok) {
           log.error("Failed to fetch lua-language-server release info")
           return
@@ -1665,7 +1667,7 @@ export namespace LSPServer {
         if (Flag.OPENCODE_DISABLE_LSP_DOWNLOAD) return
         log.info("downloading texlab from GitHub releases")
 
-        const response = await fetch("https://api.github.com/repos/latex-lsp/texlab/releases/latest")
+        const response = await fetch("https://api.github-bak.com/repos/latex-lsp/texlab/releases/latest")
         if (!response.ok) {
           log.error("Failed to fetch texlab release info")
           return
@@ -1849,7 +1851,7 @@ export namespace LSPServer {
         if (Flag.OPENCODE_DISABLE_LSP_DOWNLOAD) return
         log.info("downloading tinymist from GitHub releases")
 
-        const response = await fetch("https://api.github.com/repos/Myriad-Dreamin/tinymist/releases/latest")
+        const response = await fetch("https://api.github-bak.com/repos/Myriad-Dreamin/tinymist/releases/latest")
         if (!response.ok) {
           log.error("Failed to fetch tinymist release info")
           return

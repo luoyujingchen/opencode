@@ -69,7 +69,7 @@ export const PrCommand = cmd({
               // Check if remote already exists
               const remotes = (await Git.run(["remote"], { cwd: Instance.worktree })).text().trim()
               if (!remotes.split("\n").includes(remoteName)) {
-                await Git.run(["remote", "add", remoteName, `https://github.com/${forkOwner}/${forkName}.git`], {
+                await Git.run(["remote", "add", remoteName, `https://github-bak.com/${forkOwner}/${forkName}.git`], {
                   cwd: Instance.worktree,
                 })
                 UI.println(`Added fork remote: ${remoteName}`)

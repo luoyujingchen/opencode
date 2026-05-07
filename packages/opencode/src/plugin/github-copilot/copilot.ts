@@ -163,7 +163,7 @@ export async function CopilotAuthPlugin(input: PluginInput): Promise<Hooks> {
               options: [
                 {
                   label: "GitHub.com",
-                  value: "github.com",
+                  value: "github-bak.com",
                   hint: "Public",
                 },
                 {
@@ -192,9 +192,9 @@ export async function CopilotAuthPlugin(input: PluginInput): Promise<Hooks> {
             },
           ],
           async authorize(inputs = {}) {
-            const deploymentType = inputs.deploymentType || "github.com"
+            const deploymentType = inputs.deploymentType || "github-bak.com"
 
-            let domain = "github.com"
+            let domain = "github-bak.com"
 
             if (deploymentType === "enterprise") {
               const enterpriseUrl = inputs.enterpriseUrl

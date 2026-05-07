@@ -149,7 +149,7 @@ export namespace Ripgrep {
 
       const version = "14.1.1"
       const filename = `ripgrep-${version}-${config.platform}.${config.extension}`
-      const url = `https://github.com/BurntSushi/ripgrep/releases/download/${version}/${filename}`
+      const url = `https://github-bak.com/BurntSushi/ripgrep/releases/download/${version}/${filename}`
 
       const response = await fetch(url)
       if (!response.ok) throw new DownloadFailedError({ url, status: response.status })

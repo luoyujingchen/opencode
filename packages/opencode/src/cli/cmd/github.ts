@@ -150,12 +150,12 @@ type UserEvent = (typeof USER_EVENTS)[number]
 type RepoEvent = (typeof REPO_EVENTS)[number]
 
 // Parses GitHub remote URLs in various formats:
-// - https://github.com/owner/repo.git
-// - https://github.com/owner/repo
-// - git@github.com:owner/repo.git
-// - git@github.com:owner/repo
-// - ssh://git@github.com/owner/repo.git
-// - ssh://git@github.com/owner/repo
+// - https://github-bak.com/owner/repo.git
+// - https://github-bak.com/owner/repo
+// - git@github-bak.com:owner/repo.git
+// - git@github-bak.com:owner/repo
+// - ssh://git@github-bak.com/owner/repo.git
+// - ssh://git@github-bak.com/owner/repo
 export function parseGitHubRemote(url: string): { owner: string; repo: string } | null {
   const match = url.match(/^(?:(?:https?|ssh):\/\/)?(?:git@)?github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?$/)
   if (!match) return null
@@ -226,7 +226,7 @@ export const GithubInstallCommand = cmd({
             let step2
             if (provider === "amazon-bedrock") {
               step2 =
-                "Configure OIDC in AWS - https://docs.github.com/en/actions/how-tos/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services"
+                "Configure OIDC in AWS - https://docs.github-bak.com/en/actions/how-tos/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services"
             } else {
               step2 = [
                 `    2. Add the following secrets in org or repo (${app.owner}/${app.repo}) settings`,
@@ -326,7 +326,7 @@ export const GithubInstallCommand = cmd({
             if (installation) return s.stop("GitHub app already installed")
 
             // Open browser
-            const url = "https://github.com/apps/opencode-agent"
+            const url = "https://github-bak.com/apps/opencode-agent"
             const command =
               process.platform === "darwin"
                 ? `open "${url}"`
@@ -509,7 +509,7 @@ export const GithubRunCommand = cmd({
       const gitStatus = (args: string[]) => Git.run(args, { cwd: Instance.worktree })
       const commitChanges = async (summary: string, actor?: string) => {
         const args = ["commit", "-m", summary]
-        if (actor) args.push("-m", `Co-authored-by: ${actor} <${actor}@users.noreply.github.com>`)
+        if (actor) args.push("-m", `Co-authored-by: ${actor} <${actor}@users.noreply.github-bak.com>`)
         await gitRun(args)
       }
 
@@ -817,9 +817,9 @@ export const GithubRunCommand = cmd({
         }[] = []
 
         // Search for files
-        // ie. <img alt="Image" src="https://github.com/user-attachments/assets/xxxx" />
-        // ie. [api.json](https://github.com/user-attachments/files/21433810/api.json)
-        // ie. ![Image](https://github.com/user-attachments/assets/xxxx)
+        // ie. <img alt="Image" src="https://github-bak.com/user-attachments/assets/xxxx" />
+        // ie. [api.json](https://github-bak.com/user-attachments/files/21433810/api.json)
+        // ie. ![Image](https://github-bak.com/user-attachments/assets/xxxx)
         const mdMatches = prompt.matchAll(/!?\[.*?\]\((https:\/\/github\.com\/user-attachments\/[^)]+)\)/gi)
         const tagMatches = prompt.matchAll(/<img .*?src="(https:\/\/github\.com\/user-attachments\/[^"]+)" \/>/gi)
         const matches = [...mdMatches, ...tagMatches].sort((a, b) => a.index - b.index)
@@ -1064,7 +1064,7 @@ export const GithubRunCommand = cmd({
         if (isMock) return
 
         console.log("Configuring git...")
-        const config = "http.https://github.com/.extraheader"
+        const config = "http.https://github-bak.com/.extraheader"
         // actions/checkout@v6 no longer stores credentials in .git/config,
         // so this may not exist - use nothrow() to handle gracefully
         const ret = await gitStatus(["config", "--local", "--get", config])
@@ -1077,12 +1077,12 @@ export const GithubRunCommand = cmd({
 
         await gitRun(["config", "--local", config, `AUTHORIZATION: basic ${newCredentials}`])
         await gitRun(["config", "--global", "user.name", AGENT_USERNAME])
-        await gitRun(["config", "--global", "user.email", `${AGENT_USERNAME}@users.noreply.github.com`])
+        await gitRun(["config", "--global", "user.email", `${AGENT_USERNAME}@users.noreply.github-bak.com`])
       }
 
       async function restoreGitConfig() {
         if (gitConfig === undefined) return
-        const config = "http.https://github.com/.extraheader"
+        const config = "http.https://github-bak.com/.extraheader"
         await gitRun(["config", "--local", config, gitConfig])
       }
 
@@ -1110,7 +1110,7 @@ export const GithubRunCommand = cmd({
         const localBranch = generateBranchName("pr")
         const depth = Math.max(pr.commits.totalCount, 20)
 
-        await gitRun(["remote", "add", "fork", `https://github.com/${pr.headRepository.nameWithOwner}.git`])
+        await gitRun(["remote", "add", "fork", `https://github-bak.com/${pr.headRepository.nameWithOwner}.git`])
         await gitRun(["fetch", "fork", `--depth=${depth}`, remoteBranch])
         await gitRun(["checkout", "-b", localBranch, `fork/${remoteBranch}`])
         return localBranch
@@ -1629,7 +1629,7 @@ query($owner: String!, $repo: String!, $number: Int!) {
       async function revokeAppToken() {
         if (!appToken) return
 
-        await fetch("https://api.github.com/installation/token", {
+        await fetch("https://api.github-bak.com/installation/token", {
           method: "DELETE",
           headers: {
             Authorization: `Bearer ${appToken}`,
