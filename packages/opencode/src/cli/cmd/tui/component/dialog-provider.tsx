@@ -14,9 +14,10 @@ import { useKeyboard } from "@opentui/solid"
 import { Clipboard } from "@tui/util/clipboard"
 import { useToast } from "../ui/toast"
 import { isConsoleManagedProvider } from "@tui/util/provider-origin"
+import { Fangcode } from "@/provider/fangcode"
 
 const PROVIDER_PRIORITY: Record<string, number> = {
-  fangcode: 0,
+  [Fangcode.id]: 0,
 }
 
 const OPENAI_COMPATIBLE = "openai-compatible"
@@ -41,41 +42,11 @@ function uniqueSlug(base: string, existingIDs: Set<string>): string {
 }
 
 async function fetchModels(baseURL: string, apiKey?: string): Promise<string[]> {
-  try {
-    const url = baseURL.replace(/\/+$/, "") + "/models"
-    const headers: Record<string, string> = {}
-    if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`
-    const result = await fetch(url, {
-      headers,
-      signal: AbortSignal.timeout(5000),
-    })
-    if (!result.ok) return []
-    const json = await result.json()
-    if (!json.data || !Array.isArray(json.data)) return []
-    return json.data
-      .filter((m: any) => typeof m?.id === "string")
-      .map((m: any) => m.id as string)
-  } catch {
-    return []
-  }
+  return Fangcode.models({ api: baseURL, key: apiKey, timeout: 5000 })
 }
 
 function openaiCompatibleModel(id: string) {
-  const text = "text" as const
-  return {
-    id,
-    name: id,
-    family: "openai-compatible",
-    release_date: "",
-    attachment: false,
-    reasoning: false,
-    temperature: true,
-    tool_call: true,
-    options: {},
-    cost: { input: 0, output: 0, cache_read: 0, cache_write: 0 },
-    limit: { context: 131072, output: 16384 },
-    modalities: { input: [text], output: [text] },
-  }
+  return Fangcode.model(id)
 }
 
 async function setupOpenAICompatible(input: {
@@ -175,6 +146,86 @@ async function setupOpenAICompatible(input: {
   input.dialog.replace(() => <DialogModel providerID={providerID} />)
 }
 
+async function setupFangcode(input: {
+  dialog: ReturnType<typeof useDialog>
+  sdk: ReturnType<typeof useSDK>
+  sync: ReturnType<typeof useSync>
+  toast: ReturnType<typeof useToast>
+}) {
+  const api = await DialogPrompt.show(input.dialog, "Base URL", {
+    value: Fangcode.base,
+    placeholder: Fangcode.base,
+  })
+  if (api === null) return
+
+  const key = await DialogPrompt.show(input.dialog, "API key", {
+    placeholder: "sk-...",
+  })
+  if (!key?.trim()) return
+
+  const base = Fangcode.api(api)
+  const models = await fetchModels(base, key.trim())
+  if (models.length === 0) {
+    input.toast.show({ variant: "error", message: "Failed to fetch FangCode models" })
+    input.dialog.clear()
+    return
+  }
+
+  const cfg = await input.sdk.client.config.get()
+  if (cfg.error || !cfg.data) {
+    input.toast.show({ variant: "error", message: "Failed to load config" })
+    input.dialog.clear()
+    return
+  }
+
+  const next = {
+    provider: {
+      ...(cfg.data.provider ?? {}),
+      [Fangcode.id]: {
+        name: "FangCode",
+        npm: "@ai-sdk/openai-compatible",
+        api: base,
+        env: ["FANGCODE_API_KEY"],
+        models: Object.fromEntries(models.map((id) => [id, openaiCompatibleModel(id)])),
+      },
+    },
+  }
+
+  const updated = await input.sdk.client.global.config.update({ config: next })
+  if (updated.error) {
+    input.toast.show({
+      variant: "error",
+      message: `Failed to update config: ${JSON.stringify(updated.error)}`,
+    })
+    input.dialog.clear()
+    return
+  }
+
+  const auth = await input.sdk.client.auth.set({
+    providerID: Fangcode.id,
+    auth: { type: "api", key: key.trim() },
+  })
+  if (auth.error) {
+    input.toast.show({ variant: "error", message: "Failed to save API key" })
+    input.dialog.clear()
+    return
+  }
+
+  await input.sdk.client.instance.dispose()
+  await input.sync.bootstrap()
+
+  const exists = (id: string) =>
+    input.sync.data.provider.some((x) => x.id === id) ||
+    input.sync.data.provider_next.all.some((x) => x.id === id)
+
+  if (!exists(Fangcode.id)) {
+    await input.sdk.client.instance.dispose()
+    await input.sync.bootstrap()
+  }
+
+  input.dialog.replace(() => <DialogModel providerID={Fangcode.id} />)
+}
+
 export function createDialogProviderOptions() {
   const sync = useSync()
   const dialog = useDialog()
@@ -183,7 +234,7 @@ export function createDialogProviderOptions() {
   const { theme } = useTheme()
   const options = createMemo(() => {
     const list = pipe(
-      sync.data.provider_next.all.filter((provider) => provider.id === "fangcode"),
+      sync.data.provider_next.all.filter((provider) => provider.id === Fangcode.id),
       sortBy((x) => PROVIDER_PRIORITY[x.id] ?? 99),
       map((provider) => {
         const consoleManaged = isConsoleManagedProvider(sync.data.console_state.consoleManagedProviders, provider.id)
@@ -276,6 +327,10 @@ export function createDialogProviderOptions() {
               }
             }
             if (method.type === "api") {
+              if (provider.id === Fangcode.id) {
+                await setupFangcode({ dialog, sdk, sync, toast })
+                return
+              }
               let metadata: Record<string, string> | undefined
               if (method.prompts?.length) {
                 const value = await PromptsMethod({ dialog, prompts: method.prompts })
@@ -294,7 +349,7 @@ export function createDialogProviderOptions() {
     // Show configured OpenAI Compatible instances
     for (const provider of sync.data.provider_next.all) {
       // Skip fangcode (already shown above) and the legacy openai-compatible ID
-      if (provider.id === "fangcode" || provider.id === OPENAI_COMPATIBLE) continue
+      if (provider.id === Fangcode.id || provider.id === OPENAI_COMPATIBLE) continue
       const connected = sync.data.provider_next.connected.includes(provider.id)
       list.push({
         title: provider.name,
@@ -397,7 +452,16 @@ export function createDialogProviderOptions() {
 }
 
 export function DialogFangcodeApiKey() {
-  return <ApiMethod providerID="fangcode" title="FangCode API key" />
+  const dialog = useDialog()
+  const sdk = useSDK()
+  const sync = useSync()
+  const toast = useToast()
+
+  onMount(() => {
+    void setupFangcode({ dialog, sdk, sync, toast })
+  })
+
+  return <DialogPrompt title="FangCode" busy={true} busyText="Preparing..." />
 }
 
 export function DialogProvider() {

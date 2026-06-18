@@ -73,12 +73,15 @@ export function Logo() {
   return (
     <box>
       <For each={logo.left}>
-        {(line, index) => (
-          <box flexDirection="row" gap={1}>
-            <box flexDirection="row">{renderLine(line, theme.textMuted, false)}</box>
-            <box flexDirection="row">{renderLine(logo.right[index()], theme.text, true)}</box>
-          </box>
-        )}
+        {(line, index) => {
+          const right = logo.right[index()]
+          return (
+            <box flexDirection="row" gap={1}>
+              <box flexDirection="row">{renderLine(line, theme.textMuted, false)}</box>
+              {right ? <box flexDirection="row">{renderLine(right, theme.text, true)}</box> : null}
+            </box>
+          )
+        }}
       </For>
     </box>
   )

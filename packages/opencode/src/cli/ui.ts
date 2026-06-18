@@ -5,13 +5,12 @@ import { logo as glyphs } from "./logo"
 
 export namespace UI {
   const wordmark = [
-    `                                                       `,
-    `███████╗ █████╗ ███╗   ██╗ ██████╗  ██████╗██╗     ██╗`,
-    `██╔════╝██╔══██╗████╗  ██║██╔════╝ ██╔════╝██║     ██║`,
-    `█████╗  ███████║██╔██╗ ██║██║  ███╗██║     ██║     ██║`,
-    `██╔══╝  ██╔══██║██║╚██╗██║██║   ██║██║     ██║     ██║`,
-    `██║     ██║  ██║██║ ╚████║╚██████╔╝╚██████╗███████╗██║`,
-    `╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝ ╚═════╝  ╚═════╝╚══════╝╚═╝`,
+    `███████╗ █████╗ ███╗   ██╗ ██████╗  ██████╗ ██████╗ ██████╗ ███████╗`,
+    `██╔════╝██╔══██╗████╗  ██║██╔════╝ ██╔════╝██╔═══██╗██╔══██╗██╔════╝`,
+    `█████╗  ███████║██╔██╗ ██║██║  ███╗██║     ██║   ██║██║  ██║█████╗  `,
+    `██╔══╝  ██╔══██║██║╚██╗██║██║   ██║██║     ██║   ██║██║  ██║██╔══╝  `,
+    `██║     ██║  ██║██║ ╚████║╚██████╔╝╚██████╗╚██████╔╝██████╔╝███████╗`,
+    `╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝ ╚═════╝  ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝`,
   ]
 
   export const CancelledError = NamedError.create("UICancelledError", z.void())
@@ -100,8 +99,12 @@ export namespace UI {
     glyphs.left.forEach((row, index) => {
       if (pad) result.push(pad)
       result.push(draw(row, left.fg, left.shadow, left.bg))
-      result.push(gap)
       const other = glyphs.right[index] ?? ""
+      if (!other) {
+        result.push(EOL)
+        return
+      }
+      result.push(gap)
       result.push(draw(other, right.fg, right.shadow, right.bg))
       result.push(EOL)
     })

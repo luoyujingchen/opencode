@@ -56,6 +56,7 @@ import { GoogleAuth } from "google-auth-library"
 import { ProviderTransform } from "./transform"
 import { Installation } from "../installation"
 import { ModelID, ProviderID } from "./schema"
+import { Fangcode } from "./fangcode"
 
 export namespace Provider {
   const log = Log.create({ service: "provider" })
@@ -201,6 +202,43 @@ export namespace Provider {
         return {
           autoload: Object.keys(input.models).length > 0,
           options: ok ? {} : { apiKey: "public" },
+        }
+      }),
+      fangcode: Effect.fnUntraced(function* (input: Info) {
+        const cfg = (yield* dep.config()).provider?.[Fangcode.id]
+        const auth = yield* dep.auth(Fangcode.id)
+        const env = Env.all()
+        const key = iife(() => {
+          const opt = cfg?.options?.apiKey
+          if (typeof opt === "string" && opt.trim().length > 0) return opt.trim()
+          if (auth?.type === "api" && auth.key.trim().length > 0) return auth.key.trim()
+          return input.env.map((item) => env[item]?.trim()).find((item) => item && item.length > 0)
+        })
+        const api = Fangcode.api(
+          typeof cfg?.api === "string" && cfg.api.trim().length > 0
+            ? cfg.api
+            : typeof cfg?.options?.baseURL === "string"
+              ? cfg.options.baseURL
+              : Fangcode.base,
+        )
+
+        return {
+          autoload: Boolean(key) || Object.keys(input.models).length > 0,
+          options: {
+            baseURL: api,
+          },
+          async discoverModels() {
+            const provider = {
+              ...Fangcode.provider,
+              id: input.id,
+              name: input.name,
+              env: input.env,
+              api,
+              models: {},
+            } as ModelsDev.Provider
+            const ids = await Fangcode.models({ api, key })
+            return Object.fromEntries(ids.map((id) => [id, fromModelsDevModel(provider, Fangcode.model(id))]))
+          },
         }
       }),
       openai: () =>
@@ -1235,18 +1273,18 @@ export namespace Provider {
             mergeProvider(providerID, partial)
           }
 
-          const gitlab = ProviderID.make("gitlab")
-          if (discoveryLoaders[gitlab] && providers[gitlab] && isProviderAllowed(gitlab)) {
+          for (const [id, discover] of Object.entries(discoveryLoaders)) {
+            const pid = ProviderID.make(id)
+            const provider = providers[pid]
+            if (!provider || !isProviderAllowed(pid)) continue
             yield* Effect.promise(async () => {
               try {
-                const discovered = await discoveryLoaders[gitlab]()
-                for (const [modelID, model] of Object.entries(discovered)) {
-                  if (!providers[gitlab].models[modelID]) {
-                    providers[gitlab].models[modelID] = model
-                  }
+                const models = await discover()
+                for (const [modelID, model] of Object.entries(models)) {
+                  if (!provider.models[modelID]) provider.models[modelID] = model
                 }
               } catch (e) {
-                log.warn("state discovery error", { id: "gitlab", error: e })
+                log.warn("state discovery error", { id, error: e })
               }
             })
           }

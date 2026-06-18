@@ -17,7 +17,16 @@ import pkg from "../package.json"
 
 const DEFAULT_MODELS_URL = "http://xiaofang-newapi.qyfbeta.com/v1/provider"
 const modelsUrl = process.env.FANG_MODELS_URL || process.env.OPENCODE_MODELS_URL || DEFAULT_MODELS_URL
-const fallbackModelsPath = path.join(dir, "src/provider/fangcode-models-template.json")
+const fallback = JSON.stringify({
+  fangcode: {
+    id: "fangcode",
+    name: "FangCode",
+    api: "http://xiaofang-newapi.qyfbeta.com/v1",
+    npm: "@ai-sdk/openai-compatible",
+    env: ["FANGCODE_API_KEY"],
+    models: {},
+  },
+})
 // Fetch and generate models.dev snapshot
 const modelsData = await (async () => {
   if (process.env.MODELS_DEV_API_JSON) {
@@ -28,10 +37,10 @@ const modelsData = await (async () => {
     const res = await fetch(url)
     if (res.ok) return await res.text()
   } catch {
-    // fall through to local template
+    // fall through to local fallback
   }
-  console.warn(`Failed to fetch ${url}, using local fallback: ${fallbackModelsPath}`)
-  return Bun.file(fallbackModelsPath).text()
+  console.warn(`Failed to fetch ${url}, using empty FangCode fallback`)
+  return fallback
 })()
 await Bun.write(
   path.join(dir, "src/provider/models-snapshot.js"),

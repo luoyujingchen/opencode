@@ -8,7 +8,7 @@ import { lazy } from "@/util/lazy"
 import { Filesystem } from "../util/filesystem"
 import { Flock } from "@/util/flock"
 import { Hash } from "@/util/hash"
-import fangcodeModelsRaw from "./fangcode-models-template.json"
+import { Fangcode } from "./fangcode"
 
 // Try to import bundled snapshot (generated at build time)
 // Falls back to undefined in dev mode when snapshot doesn't exist
@@ -132,11 +132,14 @@ export namespace ModelsDev {
     })
   })
 
-  const FANGCODE_PROVIDER = fangcodeModelsRaw.fangcode as Provider
-
   export async function get() {
     const result = (await Data()) as Record<string, Provider>
-    if (!result["fangcode"]) result["fangcode"] = FANGCODE_PROVIDER
+    result[Fangcode.id] = {
+      ...Fangcode.provider,
+      ...result[Fangcode.id],
+      api: result[Fangcode.id]?.api ?? Fangcode.base,
+      models: {},
+    } as Provider
     return result
   }
 

@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test"
+import { test, expect, mock } from "bun:test"
 import { mkdir, unlink } from "fs/promises"
 import path from "path"
 
@@ -725,6 +725,57 @@ test("explicit baseURL overrides api field", async () => {
       expect(providers[ProviderID.make("custom-api")].options.baseURL).toBe("https://custom.override.com/v1")
     },
   })
+})
+
+test("fangcode discovers models from v1 models endpoint", async () => {
+  const fetcher = globalThis.fetch
+  const api = "https://fang.example/v1"
+  const calls: string[] = []
+  globalThis.fetch = mock(async (input: string | URL | Request, init?: RequestInit) => {
+    const url = new URL(input instanceof Request ? input.url : input.toString())
+    if (url.href !== `${api}/models`) return new Response("not found", { status: 404 })
+    calls.push(new Headers(init?.headers).get("authorization") ?? "")
+    return Response.json({
+      data: [{ id: "fang-model-a" }, { id: "fang-model-b" }],
+    })
+  }) as unknown as typeof fetch
+
+  try {
+    await using tmp = await tmpdir({
+      init: async (dir) => {
+        await Bun.write(
+          path.join(dir, "opencode.json"),
+          JSON.stringify({
+            $schema: "https://opencode.ai/config.json",
+            provider: {
+              fangcode: {
+                api,
+              },
+            },
+          }),
+        )
+      },
+    })
+    await Instance.provide({
+      directory: tmp.path,
+      init: async () => {
+        Env.set("FANGCODE_API_KEY", "test-fangcode-key")
+      },
+      fn: async () => {
+        const providers = await Provider.list()
+        const provider = providers[ProviderID.make("fangcode")]
+        expect(provider).toBeDefined()
+        expect(provider.options.baseURL).toBe(api)
+        expect(provider.key).toBe("test-fangcode-key")
+        expect(Object.keys(provider.models).sort()).toEqual(["fang-model-a", "fang-model-b"])
+        expect(provider.models["fang-model-a"].api.url).toBe(api)
+        expect(provider.models["fang-model-a"].api.npm).toBe("@ai-sdk/openai-compatible")
+        expect(calls).toEqual(["Bearer test-fangcode-key"])
+      },
+    })
+  } finally {
+    globalThis.fetch = fetcher
+  }
 })
 
 test("model inherits properties from existing database model", async () => {
