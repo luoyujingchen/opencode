@@ -22,16 +22,22 @@ export async function spawnWslSidecar(
 
   const port = await allocatePort()
   const password = randomUUID()
-  const username = "opencode"
+  const username = "fangcode"
   const script = [
     "set -euo pipefail",
     'cd "$HOME" || cd /',
     'PATH=$(awk -v RS=: -v ORS=: \'$0 !~ /^\\/mnt\\//\' <<<"$PATH" | sed "s/:$//")',
     "export PATH",
     "export WSLENV=",
+    "export FANG_INTERNAL_COMMANDS=1",
+    "export OPENCODE_INTERNAL_COMMANDS=1",
+    "export FANG_EXPERIMENTAL_DISABLE_FILEWATCHER=true",
     "export OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER=true",
+    "export FANG_CLIENT=desktop",
     "export OPENCODE_CLIENT=desktop",
+    `export FANG_SERVER_USERNAME=${shellEscape(username)}`,
     `export OPENCODE_SERVER_USERNAME=${shellEscape(username)}`,
+    `export FANG_SERVER_PASSWORD=${shellEscape(password)}`,
     `export OPENCODE_SERVER_PASSWORD=${shellEscape(password)}`,
     'export XDG_STATE_HOME="$HOME/.local/state"',
     `exec ${shellEscape(opencode)} --print-logs --log-level ${app.isPackaged ? "WARN" : "INFO"} serve --hostname 0.0.0.0 --port ${port}`,
@@ -58,7 +64,7 @@ export async function spawnWslSidecar(
   })
   const url = `http://127.0.0.1:${port}`
   const startup = new AbortController()
-  const health = pollWslHealth(() => checkHealth(url, password), startup.signal)
+  const health = pollWslHealth(() => checkHealth(url, password, username), startup.signal)
   const timeoutMs = opts.healthTimeoutMs ?? 30_000
   let timeout: ReturnType<typeof setTimeout>
   const timedOut = new Promise<never>(

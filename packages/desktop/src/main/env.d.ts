@@ -1,5 +1,7 @@
 interface ImportMetaEnv {
   readonly OPENCODE_CHANNEL: string
+  readonly FANG_OFFLINE?: string
+  readonly OPENCODE_OFFLINE?: string
 }
 
 interface ImportMeta {

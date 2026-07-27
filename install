@@ -1,6 +1,39 @@
 #!/usr/bin/env bash
 set -euo pipefail
-APP=opencode
+APP=fangcode
+BIN=fangcode
+
+truthy() {
+    case "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" in
+        1|true|yes) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+SOURCE_MODE=${FANG_SOURCE_MODE:-${OPENCODE_SOURCE_MODE:-mirror}}
+if truthy "${FANG_OFFLINE:-}" || truthy "${OPENCODE_OFFLINE:-}"; then
+    SOURCE_MODE=offline
+fi
+
+case "$SOURCE_MODE" in
+    online)
+        GITHUB_WEB_DEFAULT="https://github.com"
+        GITHUB_API_DEFAULT="https://api.github.com"
+        ;;
+    mirror|offline)
+        GITHUB_WEB_DEFAULT="https://github-bak.com"
+        GITHUB_API_DEFAULT="https://api.github-bak.com"
+        ;;
+    *)
+        echo "Error: invalid source mode '$SOURCE_MODE'" >&2
+        exit 1
+        ;;
+esac
+
+GITHUB_WEB_URL=${FANG_GITHUB_WEB_URL:-${OPENCODE_GITHUB_WEB_URL:-$GITHUB_WEB_DEFAULT}}
+GITHUB_API_URL=${FANG_GITHUB_API_URL:-${OPENCODE_GITHUB_API_URL:-$GITHUB_API_DEFAULT}}
+RELEASE_REPO=${FANG_RELEASE_REPO:-${OPENCODE_RELEASE_REPO:-anomalyco/fangcode}}
+RELEASE_DOWNLOAD_BASE=${FANG_RELEASE_DOWNLOAD_BASE:-${OPENCODE_RELEASE_DOWNLOAD_BASE:-$GITHUB_WEB_URL/$RELEASE_REPO/releases/download}}
 
 MUTED='\033[0;2m'
 RED='\033[0;31m'
@@ -9,7 +42,7 @@ NC='\033[0m' # No Color
 
 usage() {
     cat <<EOF
-OpenCode Installer
+FangCode Installer
 
 Usage: install.sh [options]
 
@@ -20,9 +53,9 @@ Options:
         --no-modify-path    Don't modify shell config files (.zshrc, .bashrc, etc.)
 
 Examples:
-    curl -fsSL https://opencode.ai/install | bash
-    curl -fsSL https://opencode.ai/install | bash -s -- --version 1.0.180
-    ./install --binary /path/to/opencode
+    curl -fsSL https://fangcode.ai/install | bash
+    curl -fsSL https://fangcode.ai/install | bash -s -- --version 1.0.180
+    ./install --binary /path/to/fangcode
 EOF
 }
 
@@ -65,7 +98,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-INSTALL_DIR=$HOME/.opencode/bin
+INSTALL_DIR=$HOME/.fangcode/bin
 mkdir -p "$INSTALL_DIR"
 
 # If --binary is provided, skip all download/detection logic
@@ -76,6 +109,11 @@ if [ -n "$binary_path" ]; then
     fi
     specific_version="local"
 else
+    if [ "$SOURCE_MODE" = "offline" ]; then
+        echo -e "${RED}Error: offline mode requires --binary <path>${NC}"
+        exit 1
+    fi
+
     raw_os=$(uname -s)
     os=$(echo "$raw_os" | tr '[:upper:]' '[:lower:]')
     case "$raw_os" in
@@ -181,24 +219,24 @@ else
     fi
 
     if [ -z "$requested_version" ]; then
-        url="https://github.com/anomalyco/opencode/releases/latest/download/$filename"
-        specific_version=$(curl -s https://api.github.com/repos/anomalyco/opencode/releases/latest | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p')
+        specific_version=$(curl -s "$GITHUB_API_URL/repos/$RELEASE_REPO/releases/latest" | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p')
 
         if [[ $? -ne 0 || -z "$specific_version" ]]; then
             echo -e "${RED}Failed to fetch version information${NC}"
             exit 1
         fi
+        url="$RELEASE_DOWNLOAD_BASE/v${specific_version}/$filename"
     else
         # Strip leading 'v' if present
         requested_version="${requested_version#v}"
-        url="https://github.com/anomalyco/opencode/releases/download/v${requested_version}/$filename"
+        url="$RELEASE_DOWNLOAD_BASE/v${requested_version}/$filename"
         specific_version=$requested_version
 
         # Verify the release exists before downloading
-        http_status=$(curl -sI -o /dev/null -w "%{http_code}" "https://github.com/anomalyco/opencode/releases/tag/v${requested_version}")
+        http_status=$(curl -sI -o /dev/null -w "%{http_code}" "$GITHUB_WEB_URL/$RELEASE_REPO/releases/tag/v${requested_version}")
         if [ "$http_status" = "404" ]; then
             echo -e "${RED}Error: Release v${requested_version} not found${NC}"
-            echo -e "${MUTED}Available releases: https://github.com/anomalyco/opencode/releases${NC}"
+            echo -e "${MUTED}Available releases: $GITHUB_WEB_URL/$RELEASE_REPO/releases${NC}"
             exit 1
         fi
     fi
@@ -219,11 +257,9 @@ print_message() {
 }
 
 check_version() {
-    if command -v opencode >/dev/null 2>&1; then
-        opencode_path=$(which opencode)
-
+    if command -v "$BIN" >/dev/null 2>&1; then
         ## Check the installed version
-        installed_version=$(opencode --version 2>/dev/null || echo "")
+        installed_version=$("$BIN" --version 2>/dev/null || echo "")
 
         if [[ "$installed_version" != "$specific_version" ]]; then
             print_message info "${MUTED}Installed version: ${NC}$installed_version."
@@ -275,7 +311,7 @@ download_with_progress() {
     fi
 
     local tmp_dir=${TMPDIR:-/tmp}
-    local basename="${tmp_dir}/opencode_install_$$"
+    local basename="${tmp_dir}/fangcode_install_$$"
     local tracefile="${basename}.trace"
 
     rm -f "$tracefile"
@@ -325,8 +361,8 @@ download_with_progress() {
 }
 
 download_and_install() {
-    print_message info "\n${MUTED}Installing ${NC}opencode ${MUTED}version: ${NC}$specific_version"
-    local tmp_dir="${TMPDIR:-/tmp}/opencode_install_$$"
+    print_message info "\n${MUTED}Installing ${NC}fangcode ${MUTED}version: ${NC}$specific_version"
+    local tmp_dir="${TMPDIR:-/tmp}/fangcode_install_$$"
     mkdir -p "$tmp_dir"
 
     if [[ "$os" == "windows" ]] || ! [ -t 2 ] || ! download_with_progress "$url" "$tmp_dir/$filename"; then
@@ -340,15 +376,15 @@ download_and_install() {
         unzip -q "$tmp_dir/$filename" -d "$tmp_dir"
     fi
 
-    mv "$tmp_dir/opencode" "$INSTALL_DIR"
-    chmod 755 "${INSTALL_DIR}/opencode"
+    mv "$tmp_dir/$BIN" "$INSTALL_DIR"
+    chmod 755 "${INSTALL_DIR}/$BIN"
     rm -rf "$tmp_dir"
 }
 
 install_from_binary() {
-    print_message info "\n${MUTED}Installing ${NC}opencode ${MUTED}from: ${NC}$binary_path"
-    cp "$binary_path" "${INSTALL_DIR}/opencode"
-    chmod 755 "${INSTALL_DIR}/opencode"
+    print_message info "\n${MUTED}Installing ${NC}fangcode ${MUTED}from: ${NC}$binary_path"
+    cp "$binary_path" "${INSTALL_DIR}/$BIN"
+    chmod 755 "${INSTALL_DIR}/$BIN"
 }
 
 if [ -n "$binary_path" ]; then
@@ -366,9 +402,9 @@ add_to_path() {
     if grep -Fxq "$command" "$config_file"; then
         print_message info "Command already exists in $config_file, skipping write."
     elif [[ -w $config_file ]]; then
-        echo -e "\n# opencode" >> "$config_file"
+        echo -e "\n# fangcode" >> "$config_file"
         echo "$command" >> "$config_file"
-        print_message info "${MUTED}Successfully added ${NC}opencode ${MUTED}to \$PATH in ${NC}$config_file"
+        print_message info "${MUTED}Successfully added ${NC}fangcode ${MUTED}to \$PATH in ${NC}$config_file"
     else
         print_message warning "Manually add the directory to $config_file (or similar):"
         print_message info "  $command"
@@ -444,17 +480,19 @@ if [ -n "${GITHUB_ACTIONS-}" ] && [ "${GITHUB_ACTIONS}" == "true" ]; then
 fi
 
 echo -e ""
-echo -e "${MUTED}                    ${NC}             ▄     "
-echo -e "${MUTED}█▀▀█ █▀▀█ █▀▀█ █▀▀▄ ${NC}█▀▀▀ █▀▀█ █▀▀█ █▀▀█"
-echo -e "${MUTED}█░░█ █░░█ █▀▀▀ █░░█ ${NC}█░░░ █░░█ █░░█ █▀▀▀"
-echo -e "${MUTED}▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ${NC}▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀"
+echo -e "${MUTED}███████╗ █████╗ ███╗   ██╗ ██████╗  ${NC}██████╗ ██████╗ ██████╗ ███████╗"
+echo -e "${MUTED}██╔════╝██╔══██╗████╗  ██║██╔════╝  ${NC}██╔════╝██╔═══██╗██╔══██╗██╔════╝"
+echo -e "${MUTED}█████╗  ███████║██╔██╗ ██║██║  ███╗ ${NC}██║     ██║   ██║██║  ██║█████╗  "
+echo -e "${MUTED}██╔══╝  ██╔══██║██║╚██╗██║██║   ██║ ${NC}██║     ██║   ██║██║  ██║██╔══╝  "
+echo -e "${MUTED}██║     ██║  ██║██║ ╚████║╚██████╔╝ ${NC}╚██████╗╚██████╔╝██████╔╝███████╗"
+echo -e "${MUTED}╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝ ╚═════╝  ${NC}╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝"
 echo -e ""
 echo -e ""
-echo -e "${MUTED}OpenCode includes free models, to start:${NC}"
+echo -e "${MUTED}FangCode includes free models, to start:${NC}"
 echo -e ""
 echo -e "cd <project>  ${MUTED}# Open directory${NC}"
-echo -e "opencode      ${MUTED}# Run command${NC}"
+echo -e "fangcode      ${MUTED}# Run command${NC}"
 echo -e ""
-echo -e "${MUTED}For more information visit ${NC}https://opencode.ai/docs"
+echo -e "${MUTED}For more information visit ${NC}https://fangcode.ai/docs"
 echo -e ""
 echo -e ""

@@ -27,19 +27,28 @@ async function signWindows(configuration: { path: string }) {
 }
 
 const channel = (() => {
-  const raw = process.env.OPENCODE_CHANNEL
+  const raw = process.env.FANG_CHANNEL || process.env.OPENCODE_CHANNEL
   if (raw === "dev" || raw === "beta" || raw === "prod") return raw
   return "dev"
 })()
 
 const APP_IDS = {
-  dev: "ai.opencode.desktop.dev",
-  beta: "ai.opencode.desktop.beta",
-  prod: "ai.opencode.desktop",
+  dev: "ai.fangcode.desktop.dev",
+  beta: "ai.fangcode.desktop.beta",
+  prod: "ai.fangcode.desktop",
 } as const
 
+function publish(repo: string) {
+  const url = process.env.FANG_GITHUB_WEB_URL || process.env.OPENCODE_GITHUB_WEB_URL
+  const git = { provider: "github" as const, owner: "anomalyco", repo, channel: "latest" }
+  const cfg = url ? { ...git, host: new URL(url).hostname } : git
+  const update = process.env.FANG_DESKTOP_UPDATE_URL || process.env.OPENCODE_DESKTOP_UPDATE_URL
+  if (!update) return cfg
+  return [{ provider: "generic" as const, url: update, channel: "latest" }, cfg]
+}
+
 const getBase = (appId: string): Configuration => ({
-  artifactName: "opencode-desktop-${os}-${arch}.${ext}",
+  artifactName: "fangcode-desktop-${os}-${arch}.${ext}",
   directories: {
     output: "dist",
     buildResources: "resources",
@@ -74,8 +83,8 @@ const getBase = (appId: string): Configuration => ({
     sign: true,
   },
   protocols: {
-    name: "OpenCode",
-    schemes: ["opencode"],
+    name: "FangCode",
+    schemes: ["fangcode", "opencode"],
   },
   win: {
     icon: `resources/icons/icon.ico`,
@@ -115,29 +124,29 @@ function getConfig() {
       return {
         ...base,
         appId,
-        productName: "OpenCode Dev",
-        rpm: { packageName: "opencode-dev" },
+        productName: "FangCode Dev",
+        rpm: { packageName: "fangcode-dev" },
       }
     }
     case "beta": {
       return {
         ...base,
         appId,
-        productName: "OpenCode Beta",
-        protocols: { name: "OpenCode Beta", schemes: ["opencode"] },
-        publish: { provider: "github", owner: "anomalyco", repo: "opencode-beta", channel: "latest" },
-        rpm: { packageName: "opencode-beta" },
+        productName: "FangCode Beta",
+        protocols: { name: "FangCode Beta", schemes: ["fangcode", "opencode"] },
+        publish: publish("fangcode-beta"),
+        rpm: { packageName: "fangcode-beta" },
       }
     }
     case "prod": {
       return {
         ...base,
         appId,
-        productName: "OpenCode",
-        protocols: { name: "OpenCode", schemes: ["opencode"] },
-        publish: { provider: "github", owner: "anomalyco", repo: "opencode", channel: "latest" },
+        productName: "FangCode",
+        protocols: { name: "FangCode", schemes: ["fangcode", "opencode"] },
+        publish: publish("fangcode"),
         deb: { fpm: [legacyDesktopEntryFpm] },
-        rpm: { packageName: "opencode", fpm: [legacyDesktopEntryFpm] },
+        rpm: { packageName: "fangcode", fpm: [legacyDesktopEntryFpm] },
       }
     }
   }

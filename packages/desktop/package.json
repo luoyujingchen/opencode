@@ -4,10 +4,10 @@
   "version": "1.18.2",
   "type": "module",
   "license": "MIT",
-  "homepage": "https://opencode.ai",
+  "homepage": "https://fangcode.ai",
   "author": {
-    "name": "OpenCode",
-    "email": "hello@opencode.ai"
+    "name": "FangCode",
+    "email": "hello@fangcode.ai"
   },
   "scripts": {
     "typecheck": "tsgo -b",

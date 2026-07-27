@@ -30,11 +30,21 @@ import { errorMessage } from "./util/error"
 import { PluginCommand } from "./cli/cmd/plug"
 import { Heap } from "./cli/heap"
 
-const args = hideBin(process.argv)
+const raw = hideBin(process.argv)
+const args = raw[0] === "__internal" ? raw.slice(1) : raw
+const internal =
+  raw[0] === "__internal" ||
+  truthy(process.env.FANG_INTERNAL_COMMANDS) ||
+  truthy(process.env.OPENCODE_INTERNAL_COMMANDS)
+
+function truthy(value: string | undefined) {
+  const text = value?.toLowerCase()
+  return text === "1" || text === "true" || text === "yes"
+}
 
 function show(out: string) {
   const text = out.trimStart()
-  if (!text.startsWith("opencode ")) {
+  if (!text.startsWith("fang ") && !text.startsWith("fangcode ") && !text.startsWith("opencode ")) {
     process.stderr.write(UI.logo() + EOL + EOL)
     process.stderr.write(text + EOL)
     return
@@ -42,9 +52,9 @@ function show(out: string) {
   process.stderr.write(out)
 }
 
-const cli = yargs(args)
+const base = yargs(args)
   .parserConfiguration({ "populate--": true })
-  .scriptName("opencode")
+  .scriptName("fang")
   .wrap(100)
   .help("help", "show help")
   .alias("help", "h")
@@ -64,21 +74,29 @@ const cli = yargs(args)
     type: "boolean",
   })
   .middleware(async (opts) => {
-    if (opts.printLogs) process.env.OPENCODE_PRINT_LOGS = "1"
-    if (opts.logLevel) process.env.OPENCODE_LOG_LEVEL = opts.logLevel
+    if (opts.printLogs) {
+      process.env.FANG_PRINT_LOGS = "1"
+      process.env.OPENCODE_PRINT_LOGS = "1"
+    }
+    if (opts.logLevel) {
+      process.env.FANG_LOG_LEVEL = opts.logLevel
+      process.env.OPENCODE_LOG_LEVEL = opts.logLevel
+    }
     if (opts.pure) {
+      process.env.FANG_PURE = "1"
       process.env.OPENCODE_PURE = "1"
     }
 
     Heap.start()
 
     process.env.AGENT = "1"
+    process.env.FANG = "1"
     process.env.OPENCODE = "1"
+    process.env.FANG_PID = String(process.pid)
     process.env.OPENCODE_PID = String(process.pid)
   })
   .usage("")
   .completion("completion", "generate shell completion script")
-  .command(AcpCommand)
   .command(McpCommand)
   .command(TuiThreadCommand)
   .command(AttachCommand)
@@ -90,7 +108,6 @@ const cli = yargs(args)
   .command(AgentCommand)
   .command(UpgradeCommand)
   .command(UninstallCommand)
-  .command(ServeCommand)
   .command(WebCommand)
   .command(ModelsCommand)
   .command(StatsCommand)
@@ -101,6 +118,8 @@ const cli = yargs(args)
   .command(SessionCommand)
   .command(PluginCommand)
   .command(DbCommand)
+
+const cli = (internal ? base.command(ServeCommand).command(AcpCommand) : base)
   .fail((msg, err) => {
     if (
       msg?.startsWith("Unknown argument") ||

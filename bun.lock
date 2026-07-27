@@ -560,7 +560,8 @@
       "name": "opencode",
       "version": "1.18.2",
       "bin": {
-        "opencode": "./bin/opencode",
+        "fang": "./bin/fangcode",
+        "fangcode": "./bin/fangcode",
       },
       "dependencies": {
         "@actions/core": "1.11.1",

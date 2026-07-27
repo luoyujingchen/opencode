@@ -96,7 +96,7 @@ describe("installation", () => {
       Effect.gen(function* () {
         const result = yield* Installation.use.latest("npm")
         expect(result).toBe("1.5.0")
-        expect(npmCalls).toContain(`https://registry.npmjs.org/opencode-ai/${InstallationChannel}`)
+        expect(npmCalls).toContain(`https://mirrors.huawei-bakcloud.com/repository/npm/fangcode/${InstallationChannel}`)
       }),
     )
 
@@ -110,7 +110,7 @@ describe("installation", () => {
       Effect.gen(function* () {
         const result = yield* Installation.use.latest("bun")
         expect(result).toBe("1.6.0")
-        expect(bunCalls).toContain(`https://registry.npmjs.org/opencode-ai/${InstallationChannel}`)
+        expect(bunCalls).toContain(`https://mirrors.huawei-bakcloud.com/repository/npm/fangcode/${InstallationChannel}`)
       }),
     )
 
@@ -124,33 +124,49 @@ describe("installation", () => {
       Effect.gen(function* () {
         const result = yield* Installation.use.latest("pnpm")
         expect(result).toBe("1.7.0")
-        expect(pnpmCalls).toContain(`https://registry.npmjs.org/opencode-ai/${InstallationChannel}`)
+        expect(pnpmCalls).toContain(`https://mirrors.huawei-bakcloud.com/repository/npm/fangcode/${InstallationChannel}`)
       }),
     )
 
-    testEffect(testLayer(() => jsonResponse({ version: "2.3.4" }))).effect("reads scoop manifest versions", () =>
+    const scoopCalls: string[] = []
+    testEffect(
+      testLayer((request) => {
+        scoopCalls.push(request.url)
+        return jsonResponse({ version: "2.3.4" })
+      }),
+    ).effect("reads scoop manifest versions", () =>
       Effect.gen(function* () {
         const result = yield* Installation.use.latest("scoop")
         expect(result).toBe("2.3.4")
+        expect(scoopCalls).toContain("https://github-bak.com/ScoopInstaller/Main/raw/master/bucket/fangcode.json")
       }),
     )
 
-    testEffect(testLayer(() => jsonResponse({ d: { results: [{ Version: "3.4.5" }] } }))).effect(
+    const chocoCalls: string[] = []
+    testEffect(
+      testLayer((request) => {
+        chocoCalls.push(request.url)
+        return jsonResponse({ d: { results: [{ Version: "3.4.5" }] } })
+      }),
+    ).effect(
       "reads chocolatey feed versions",
       () =>
         Effect.gen(function* () {
           const result = yield* Installation.use.latest("choco")
           expect(result).toBe("3.4.5")
+          expect(chocoCalls[0]).toContain("Id%20eq%20%27fangcode%27")
         }),
     )
 
+    const brewCalls: string[] = []
     testEffect(
       testLayer(
-        () => jsonResponse({ versions: { stable: "2.0.0" } }),
+        (request) => {
+          brewCalls.push(request.url)
+          return jsonResponse({ versions: { stable: "2.0.0" } })
+        },
         (cmd, args) => {
-          // getBrewFormula: return core formula (no tap)
-          if (cmd === "brew" && args.includes("--formula") && args.includes("anomalyco/tap/opencode")) return ""
-          if (cmd === "brew" && args.includes("--formula") && args.includes("opencode")) return "opencode"
+          if (cmd === "brew" && args.includes("--formula") && args.includes("fangcode")) return "fangcode"
           return ""
         },
       ),
@@ -158,6 +174,7 @@ describe("installation", () => {
       Effect.gen(function* () {
         const result = yield* Installation.use.latest("brew")
         expect(result).toBe("2.0.0")
+        expect(brewCalls).toContain("https://formulae.brew.sh/api/formula/fangcode.json")
       }),
     )
 
@@ -168,7 +185,7 @@ describe("installation", () => {
       testLayer(
         () => jsonResponse({}), // HTTP not used for tap formula
         (cmd, args) => {
-          if (cmd === "brew" && args.includes("anomalyco/tap/opencode") && args.includes("--formula")) return "opencode"
+          if (cmd === "brew" && args.includes("anomalyco/tap/fangcode") && args.includes("--formula")) return "fangcode"
           if (cmd === "brew" && args.includes("--json=v2")) return brewInfoJson
           return ""
         },
