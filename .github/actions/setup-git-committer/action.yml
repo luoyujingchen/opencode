@@ -1,12 +1,18 @@
 name: "Setup Git Committer"
 description: "Create app token and configure git user"
 inputs:
+  fangcode-app-id:
+    description: "FangCode GitHub App ID"
+    required: false
+  fangcode-app-secret:
+    description: "FangCode GitHub App private key"
+    required: false
   opencode-app-id:
-    description: "OpenCode GitHub App ID"
-    required: true
+    description: "Legacy OpenCode GitHub App ID"
+    required: false
   opencode-app-secret:
-    description: "OpenCode GitHub App private key"
-    required: true
+    description: "Legacy OpenCode GitHub App private key"
+    required: false
 outputs:
   token:
     description: "GitHub App token"
@@ -21,8 +27,8 @@ runs:
       id: apptoken
       uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
       with:
-        app-id: ${{ inputs.opencode-app-id }}
-        private-key: ${{ inputs.opencode-app-secret }}
+        app-id: ${{ inputs.fangcode-app-id || inputs.opencode-app-id }}
+        private-key: ${{ inputs.fangcode-app-secret || inputs.opencode-app-secret }}
         owner: ${{ github.repository_owner }}
 
     - name: Configure git user

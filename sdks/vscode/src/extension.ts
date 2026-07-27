@@ -3,14 +3,14 @@ export function deactivate() {}
 
 import * as vscode from "vscode"
 
-const TERMINAL_NAME = "opencode"
+const TERMINAL_NAME = "fangcode"
 
 export function activate(context: vscode.ExtensionContext) {
-  const openNewTerminalDisposable = vscode.commands.registerCommand("opencode.openNewTerminal", async () => {
+  const openNewTerminalDisposable = vscode.commands.registerCommand("fangcode.openNewTerminal", async () => {
     await openTerminal()
   })
 
-  const openTerminalDisposable = vscode.commands.registerCommand("opencode.openTerminal", async () => {
+  const openTerminalDisposable = vscode.commands.registerCommand("fangcode.openTerminal", async () => {
     // An opencode terminal already exists => focus it
     const existingTerminal = vscode.window.terminals.find((t) => t.name === TERMINAL_NAME)
     if (existingTerminal) {
@@ -21,7 +21,7 @@ export function activate(context: vscode.ExtensionContext) {
     await openTerminal()
   })
 
-  let addFilepathDisposable = vscode.commands.registerCommand("opencode.addFilepathToTerminal", async () => {
+  let addFilepathDisposable = vscode.commands.registerCommand("fangcode.addFilepathToTerminal", async () => {
     const fileRef = getActiveFile()
     if (!fileRef) {
       return
@@ -57,12 +57,13 @@ export function activate(context: vscode.ExtensionContext) {
       },
       env: {
         _EXTENSION_OPENCODE_PORT: port.toString(),
+        FANG_CALLER: "vscode",
         OPENCODE_CALLER: "vscode",
       },
     })
 
     terminal.show()
-    terminal.sendText(`opencode --port ${port}`)
+    terminal.sendText(`fangcode --port ${port}`)
 
     const fileRef = getActiveFile()
     if (!fileRef) {
