@@ -8,6 +8,7 @@ import { makeGlobalNode } from "../effect/app-node"
 import { httpClient } from "../effect/app-node-platform"
 import { FSUtil } from "../fs-util"
 import { Global } from "../global"
+import { Source } from "../source"
 import { which } from "../util/which"
 
 export namespace RipgrepBinary {
@@ -102,8 +103,9 @@ export namespace RipgrepBinary {
             if (!config) throw new Error(`unsupported platform for ripgrep: ${platformKey}`)
 
             const filename = `ripgrep-${VERSION}-${config.platform}.${config.extension}`
-            const url = `https://github.com/BurntSushi/ripgrep/releases/download/${VERSION}/${filename}`
+            const url = Source.githubWeb(`BurntSushi/ripgrep/releases/download/${VERSION}/${filename}`)
             const archive = path.join(Global.Path.bin, filename)
+            if (Source.offline()) throw new Error(`offline mode cannot download ripgrep from ${url}`)
 
             yield* Effect.logInfo("downloading ripgrep", { url })
             yield* fs.ensureDir(Global.Path.bin).pipe(Effect.orDie)

@@ -7,16 +7,23 @@ import { Flock } from "./util/flock"
 import { Flag } from "./flag/flag"
 import { makeGlobalNode } from "./effect/app-node"
 
-const app = "opencode"
+const app = "fangcode"
+const legacy = "opencode"
 const data = path.join(xdgData!, app)
 const cache = path.join(xdgCache!, app)
 const config = path.join(xdgConfig!, app)
 const state = path.join(xdgState!, app)
 const tmp = path.join(os.tmpdir(), app)
+const old = {
+  data: path.join(xdgData!, legacy),
+  cache: path.join(xdgCache!, legacy),
+  config: path.join(xdgConfig!, legacy),
+  state: path.join(xdgState!, legacy),
+}
 
 const paths = {
   get home() {
-    return process.env.OPENCODE_TEST_HOME ?? os.homedir()
+    return process.env.FANG_TEST_HOME ?? process.env.OPENCODE_TEST_HOME ?? os.homedir()
   },
   data,
   bin: path.join(cache, "bin"),
@@ -30,7 +37,26 @@ const paths = {
 
 export const Path = paths
 
-Flock.setGlobal({ state })
+async function migrate(prev: string, next: string) {
+  const hit = await fs.stat(prev).then(
+    (stat) => stat.isDirectory(),
+    () => false,
+  )
+  if (!hit) return
+  const exists = await fs.stat(next).then(
+    (stat) => stat.isDirectory(),
+    () => false,
+  )
+  if (exists) return
+  await fs.rename(prev, next).catch(() => {})
+}
+
+await Promise.all([
+  migrate(old.data, data),
+  migrate(old.cache, cache),
+  migrate(old.config, config),
+  migrate(old.state, state),
+])
 
 await Promise.all([
   fs.mkdir(Path.data, { recursive: true }),
@@ -41,6 +67,8 @@ await Promise.all([
   fs.mkdir(Path.bin, { recursive: true }),
   fs.mkdir(Path.repos, { recursive: true }),
 ])
+
+Flock.setGlobal({ state })
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/Global") {}
 

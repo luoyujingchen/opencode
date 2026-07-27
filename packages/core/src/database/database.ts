@@ -6,6 +6,7 @@ import { Context, Effect, Layer } from "effect"
 import { Global } from "../global"
 import { Flag } from "../flag/flag"
 import { isAbsolute, join } from "path"
+import { existsSync } from "fs"
 import { DatabaseMigration } from "./migration"
 import { InstallationChannel } from "../installation/version"
 import { makeGlobalNode } from "../effect/app-node"
@@ -45,13 +46,25 @@ export function path() {
     if (Flag.OPENCODE_DB === ":memory:" || isAbsolute(Flag.OPENCODE_DB)) return Flag.OPENCODE_DB
     return join(Global.Path.data, Flag.OPENCODE_DB)
   }
-  if (
-    ["latest", "beta", "prod"].includes(InstallationChannel) ||
+  const pick = (next: string, prev: string) => {
+    const target = join(Global.Path.data, next)
+    if (existsSync(target)) return target
+    const legacy = join(Global.Path.data, prev)
+    if (existsSync(legacy)) return legacy
+    return target
+  }
+  const plain =
+    process.env.FANG_DISABLE_CHANNEL_DB === "1" ||
+    process.env.FANG_DISABLE_CHANNEL_DB === "true" ||
     process.env.OPENCODE_DISABLE_CHANNEL_DB === "1" ||
     process.env.OPENCODE_DISABLE_CHANNEL_DB === "true"
+  if (
+    ["latest", "beta", "prod"].includes(InstallationChannel) ||
+    plain
   )
-    return join(Global.Path.data, "opencode.db")
-  return join(Global.Path.data, `opencode-${InstallationChannel.replace(/[^a-zA-Z0-9._-]/g, "-")}.db`)
+    return pick("fangcode.db", "opencode.db")
+  const safe = InstallationChannel.replace(/[^a-zA-Z0-9._-]/g, "-")
+  return pick(`fangcode-${safe}.db`, `opencode-${safe}.db`)
 }
 
 export const node = makeGlobalNode({ service: Service, layer: layerFromPath(path()), deps: [] })
