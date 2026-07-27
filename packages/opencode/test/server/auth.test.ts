@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { ConfigProvider, Effect, Option, Redacted } from "effect"
+import { ConfigProvider, Effect, Layer, Option, Redacted } from "effect"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import { ServerAuth } from "../../src/server/auth"
 
@@ -62,15 +62,18 @@ describe("ServerAuth", () => {
       Effect.gen(function* () {
         return yield* ServerAuth.Config
       }).pipe(
-        Effect.provide(ServerAuth.Config.defaultLayer),
         Effect.provide(
-          ConfigProvider.layer(
-            ConfigProvider.fromUnknown({
-              FANG_SERVER_PASSWORD: "fang-secret",
-              FANG_SERVER_USERNAME: "fang",
-              OPENCODE_SERVER_PASSWORD: "open-secret",
-              OPENCODE_SERVER_USERNAME: "open",
-            }),
+          ServerAuth.Config.layer.pipe(
+            Layer.provide(
+              ConfigProvider.layer(
+                ConfigProvider.fromUnknown({
+                  FANG_SERVER_PASSWORD: "fang-secret",
+                  FANG_SERVER_USERNAME: "fang",
+                  OPENCODE_SERVER_PASSWORD: "open-secret",
+                  OPENCODE_SERVER_USERNAME: "open",
+                }),
+              ),
+            ),
           ),
         ),
       ),
