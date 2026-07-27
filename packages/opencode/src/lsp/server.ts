@@ -12,6 +12,7 @@ import { which } from "@opencode-ai/core/util/which"
 import { Module } from "@opencode-ai/core/util/module"
 import { spawn } from "./launch"
 import { Npm } from "@opencode-ai/core/npm"
+import { Source } from "@opencode-ai/core/source"
 import type { RuntimeFlags } from "@/effect/runtime-flags"
 
 const pathExists = async (p: string) =>
@@ -180,7 +181,7 @@ export const ESLint: Info = {
     const serverPath = path.join(Global.Path.bin, "vscode-eslint", "server", "out", "eslintServer.js")
     if (!(await Filesystem.exists(serverPath))) {
       if (flags.disableLspDownload) return
-      const response = await fetch("https://github.com/microsoft/vscode-eslint/archive/refs/heads/main.zip")
+      const response = await fetch(Source.githubWeb("microsoft/vscode-eslint/archive/refs/heads/main.zip"))
       if (!response.ok) return
 
       const zipPath = path.join(Global.Path.bin, "vscode-eslint.zip")
@@ -549,7 +550,7 @@ export const ElixirLS: Info = {
 
         if (flags.disableLspDownload) return
 
-        const response = await fetch("https://github.com/elixir-lsp/elixir-ls/archive/refs/heads/master.zip")
+        const response = await fetch(Source.githubWeb("elixir-lsp/elixir-ls/archive/refs/heads/master.zip"))
         if (!response.ok) return
         const zipPath = path.join(Global.Path.bin, "elixir-ls.zip")
         if (response.body) await Filesystem.writeStream(zipPath, response.body)
@@ -597,7 +598,7 @@ export const Zls: Info = {
 
       if (flags.disableLspDownload) return
 
-      const releaseResponse = await fetch("https://api.github.com/repos/zigtools/zls/releases/latest")
+      const releaseResponse = await fetch(Source.githubApi("repos/zigtools/zls/releases/latest"))
       if (!releaseResponse.ok) {
         return
       }
@@ -973,7 +974,7 @@ export const Clangd: Info = {
 
     if (flags.disableLspDownload) return
 
-    const releaseResponse = await fetch("https://api.github.com/repos/clangd/clangd/releases/latest")
+    const releaseResponse = await fetch(Source.githubApi("repos/clangd/clangd/releases/latest"))
     if (!releaseResponse.ok) {
       return
     }
@@ -1294,7 +1295,7 @@ export const KotlinLS: Info = {
     if (!installed) {
       if (flags.disableLspDownload) return
 
-      const releaseResponse = await fetch("https://api.github.com/repos/Kotlin/kotlin-lsp/releases/latest")
+      const releaseResponse = await fetch(Source.githubApi("repos/Kotlin/kotlin-lsp/releases/latest"))
       if (!releaseResponse.ok) {
         return
       }
@@ -1402,7 +1403,7 @@ export const LuaLS: Info = {
     if (!bin) {
       if (flags.disableLspDownload) return
 
-      const releaseResponse = await fetch("https://api.github.com/repos/LuaLS/lua-language-server/releases/latest")
+      const releaseResponse = await fetch(Source.githubApi("repos/LuaLS/lua-language-server/releases/latest"))
       if (!releaseResponse.ok) {
         return
       }
@@ -1702,7 +1703,7 @@ export const TexLab: Info = {
     if (!bin) {
       if (flags.disableLspDownload) return
 
-      const response = await fetch("https://api.github.com/repos/latex-lsp/texlab/releases/latest")
+      const response = await fetch(Source.githubApi("repos/latex-lsp/texlab/releases/latest"))
       if (!response.ok) {
         return
       }
@@ -1874,7 +1875,7 @@ export const Tinymist: Info = {
     if (!bin) {
       if (flags.disableLspDownload) return
 
-      const response = await fetch("https://api.github.com/repos/Myriad-Dreamin/tinymist/releases/latest")
+      const response = await fetch(Source.githubApi("repos/Myriad-Dreamin/tinymist/releases/latest"))
       if (!response.ok) {
         return
       }

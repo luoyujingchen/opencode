@@ -8,7 +8,6 @@ const OAUTH_CALLBACK_HOST = "127.0.0.1"
 // Current callback server configuration (may differ from defaults if custom redirectUri is used)
 let currentPort = OAUTH_CALLBACK_PORT
 let currentPath = OAUTH_CALLBACK_PATH
-
 interface PendingAuth {
   resolve: (code: string) => void
   reject: (error: Error) => void

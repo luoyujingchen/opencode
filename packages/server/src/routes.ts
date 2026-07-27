@@ -36,16 +36,20 @@ const applicationServices = LayerNode.group([
   LocationServiceMap.node,
 ])
 
+function username() {
+  return process.env.FANG_SERVER_USERNAME ?? process.env.OPENCODE_SERVER_USERNAME ?? "opencode"
+}
+
 export function createRoutes(password?: string) {
   return makeRoutes(
     password
-      ? ServerAuth.Config.configLayer({ username: "opencode", password: Option.some(password) })
+      ? ServerAuth.Config.configLayer({ username: username(), password: Option.some(password) })
       : ServerAuth.Config.layer,
   )
 }
 
 export function createEmbeddedRoutes() {
-  return makeRoutes(ServerAuth.Config.configLayer({ username: "opencode", password: Option.none() }))
+  return makeRoutes(ServerAuth.Config.configLayer({ username: username(), password: Option.none() }))
 }
 
 function makeRoutes<AuthError, AuthServices>(auth: Layer.Layer<ServerAuth.Config, AuthError, AuthServices>) {

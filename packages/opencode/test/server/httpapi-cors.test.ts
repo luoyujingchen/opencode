@@ -1,80 +1,53 @@
-import { NodeHttpServer, NodeServices } from "@effect/platform-node"
-import { Flag } from "@opencode-ai/core/flag/flag"
 import { describe, expect } from "bun:test"
-import { Config, ConfigProvider, Effect, Layer } from "effect"
-import { HttpClient, HttpClientRequest, HttpRouter, HttpServer } from "effect/unstable/http"
-import * as Socket from "effect/unstable/socket/Socket"
-import { Server } from "../../src/server/server"
+import { ConfigProvider, Effect, Layer } from "effect"
+import { HttpRouter } from "effect/unstable/http"
+import type { CorsOptions } from "@opencode-ai/server/cors"
 import { InstancePaths } from "../../src/server/routes/instance/httpapi/groups/instance"
 import { HttpApiApp } from "../../src/server/routes/instance/httpapi/server"
-import { resetDatabase } from "../fixture/db"
 import { testEffect } from "../lib/effect"
 
-const testStateLayer = Layer.effectDiscard(
-  Effect.gen(function* () {
-    const original = {
-      OPENCODE_SERVER_PASSWORD: Flag.OPENCODE_SERVER_PASSWORD,
-    }
-    Flag.OPENCODE_SERVER_PASSWORD = "secret"
-    yield* Effect.promise(() => resetDatabase())
-    yield* Effect.addFinalizer(() =>
-      Effect.promise(async () => {
-        Flag.OPENCODE_SERVER_PASSWORD = original.OPENCODE_SERVER_PASSWORD
-        await resetDatabase()
-      }),
-    )
-  }),
-)
+const it = testEffect(Layer.empty)
 
-const servedRoutes: Layer.Layer<never, Config.ConfigError, HttpServer.HttpServer> = HttpRouter.serve(
-  HttpApiApp.routes,
-  { disableListenLog: true, disableLogger: true },
-)
-
-const it = testEffect(
-  Layer.mergeAll(
-    testStateLayer,
-    servedRoutes.pipe(
-      Layer.provide(Socket.layerWebSocketConstructorGlobal),
-      Layer.provideMerge(NodeHttpServer.layerTest),
-      Layer.provideMerge(NodeServices.layer),
+function handler(opts?: CorsOptions) {
+  return HttpRouter.toWebHandler(
+    HttpApiApp.createRoutes(opts).pipe(
+      Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown({ OPENCODE_SERVER_PASSWORD: "secret" }))),
     ),
-  ),
-)
+    { disableLogger: true },
+  ).handler
+}
+
+function request(input: Request, opts?: CorsOptions) {
+  const handle = handler(opts)
+  return Effect.promise(() => handle(input, HttpApiApp.context))
+}
 
 describe("HttpApi CORS", () => {
-  it.live("allows browser preflight requests without credentials", () =>
+  it.effect("allows browser preflight requests without credentials", () =>
     Effect.gen(function* () {
-      const response = yield* HttpClientRequest.options(InstancePaths.path).pipe(
-        HttpClientRequest.setHeaders({
-          origin: "http://localhost:3000",
-          "access-control-request-method": "GET",
-          "access-control-request-headers": "authorization",
+      const response = yield* request(
+        new Request(new URL(InstancePaths.path, "http://localhost"), {
+          method: "OPTIONS",
+          headers: {
+            origin: "http://localhost:3000",
+            "access-control-request-method": "GET",
+            "access-control-request-headers": "authorization",
+          },
         }),
-        HttpClient.execute,
       )
 
       expect(response.status).toBe(204)
-      expect(response.headers["access-control-allow-origin"]).toBe("http://localhost:3000")
-      expect(response.headers["access-control-allow-headers"]).toBe("authorization")
+      expect(response.headers.get("access-control-allow-origin")).toBe("http://localhost:3000")
+      expect(response.headers.get("access-control-allow-headers")).toBe("authorization")
     }),
   )
 
-  it.live("adds CORS headers to unauthorized responses", () =>
+  it.effect("adds CORS headers to unauthorized responses", () =>
     Effect.gen(function* () {
-      const handler = HttpRouter.toWebHandler(
-        HttpApiApp.createRoutes().pipe(
-          Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown({ OPENCODE_SERVER_PASSWORD: "secret" }))),
-        ),
-        { disableLogger: true },
-      ).handler
-      const response = yield* Effect.promise(() =>
-        handler(
-          new Request(new URL("/global/config", "http://localhost"), {
-            headers: { origin: "https://app.opencode.ai" },
-          }),
-          HttpApiApp.context,
-        ),
+      const response = yield* request(
+        new Request(new URL("/global/config", "http://localhost"), {
+          headers: { origin: "https://app.opencode.ai" },
+        }),
       )
 
       expect(response.status).toBe(401)
@@ -82,15 +55,23 @@ describe("HttpApi CORS", () => {
     }),
   )
 
-  it.live("uses custom CORS origins passed to the server", () =>
+  it.effect("allows FangCode browser origins", () =>
     Effect.gen(function* () {
-      const listener = yield* Effect.acquireRelease(
-        Effect.promise(() => Server.listen({ hostname: "127.0.0.1", port: 0, cors: ["https://custom.example"] })),
-        (listener) => Effect.promise(() => listener.stop(true)),
+      const response = yield* request(
+        new Request(new URL("/global/config", "http://localhost"), {
+          headers: { origin: "https://app.fangcode.ai" },
+        }),
       )
 
-      const response = yield* Effect.promise(() =>
-        fetch(new URL(InstancePaths.path, listener.url), {
+      expect(response.status).toBe(401)
+      expect(response.headers.get("access-control-allow-origin")).toBe("https://app.fangcode.ai")
+    }),
+  )
+
+  it.effect("uses custom CORS origins passed to the server", () =>
+    Effect.gen(function* () {
+      const response = yield* request(
+        new Request(new URL(InstancePaths.path, "http://localhost"), {
           method: "OPTIONS",
           headers: {
             origin: "https://custom.example",
@@ -98,14 +79,15 @@ describe("HttpApi CORS", () => {
             "access-control-request-headers": "authorization",
           },
         }),
+        { cors: ["https://custom.example"] },
       )
 
       expect(response.status).toBe(204)
       expect(response.headers.get("access-control-allow-origin")).toBe("https://custom.example")
       expect(response.headers.get("access-control-allow-headers")).toBe("authorization")
 
-      const rejected = yield* Effect.promise(() =>
-        fetch(new URL(InstancePaths.path, listener.url), {
+      const rejected = yield* request(
+        new Request(new URL(InstancePaths.path, "http://localhost"), {
           method: "OPTIONS",
           headers: {
             origin: "https://evil.example",
@@ -113,6 +95,7 @@ describe("HttpApi CORS", () => {
             "access-control-request-headers": "authorization",
           },
         }),
+        { cors: ["https://custom.example"] },
       )
 
       expect(rejected.status).toBe(204)

@@ -1905,6 +1905,27 @@ describe("OPENCODE_PERMISSION env var", () => {
 })
 
 describe("OPENCODE_CONFIG_CONTENT token substitution", () => {
+  it.instance("prefers FANG_CONFIG_CONTENT over OPENCODE_CONFIG_CONTENT", () =>
+    withProcessEnv(
+      "OPENCODE_CONFIG_CONTENT",
+      JSON.stringify({
+        $schema: "https://fangcode.ai/config.json",
+        username: "opencode",
+      }),
+      withProcessEnv(
+        "FANG_CONFIG_CONTENT",
+        JSON.stringify({
+          $schema: "https://fangcode.ai/config.json",
+          username: "fangcode",
+        }),
+        Effect.gen(function* () {
+          const config = yield* Config.use.get()
+          expect(config.username).toBe("fangcode")
+        }),
+      ),
+    ),
+  )
+
   it.instance("substitutes {env:} tokens in OPENCODE_CONFIG_CONTENT", () =>
     withProcessEnv(
       "TEST_CONFIG_VAR",

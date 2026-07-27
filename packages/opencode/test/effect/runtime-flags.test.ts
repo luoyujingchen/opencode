@@ -163,6 +163,34 @@ describe("RuntimeFlags", () => {
     }),
   )
 
+  it.effect("FANG flags override OPENCODE flags", () =>
+    Effect.gen(function* () {
+      const flags = yield* readFlags.pipe(
+        Effect.provide(
+          fromConfig({
+            FANG_CLIENT: "desktop",
+            FANG_DISABLE_LSP_DOWNLOAD: "true",
+            OPENCODE_CLIENT: "cli",
+            OPENCODE_DISABLE_LSP_DOWNLOAD: "false",
+          }),
+        ),
+      )
+
+      expect(flags.client).toBe("desktop")
+      expect(flags.disableLspDownload).toBe(true)
+    }),
+  )
+
+  it.effect("offline mode disables LSP downloads", () =>
+    Effect.gen(function* () {
+      const flag = yield* readFlags.pipe(Effect.provide(fromConfig({ FANG_OFFLINE: "true" })))
+      const mode = yield* readFlags.pipe(Effect.provide(fromConfig({ FANG_SOURCE_MODE: "offline" })))
+
+      expect(flag.disableLspDownload).toBe(true)
+      expect(mode.disableLspDownload).toBe(true)
+    }),
+  )
+
   it.effect("disableClaudeCodePrompt defaults to false", () =>
     Effect.gen(function* () {
       const flags = yield* readFlags.pipe(Effect.provide(fromConfig({})))

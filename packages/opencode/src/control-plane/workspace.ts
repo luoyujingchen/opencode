@@ -526,8 +526,12 @@ const layer = Layer.effect(
         .run()
         .pipe(Effect.orDie)
 
+      const authContent = JSON.stringify(yield* auth.all())
       const env = {
-        OPENCODE_AUTH_CONTENT: JSON.stringify(yield* auth.all()),
+        FANG_AUTH_CONTENT: authContent,
+        FANG_WORKSPACE_ID: config.id,
+        FANG_EXPERIMENTAL_WORKSPACES: "true",
+        OPENCODE_AUTH_CONTENT: authContent,
         OPENCODE_WORKSPACE_ID: config.id,
         OPENCODE_EXPERIMENTAL_WORKSPACES: "true",
         OTEL_EXPORTER_OTLP_HEADERS: process.env.OTEL_EXPORTER_OTLP_HEADERS,

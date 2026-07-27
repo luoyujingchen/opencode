@@ -1,15 +1,36 @@
 import { Config, ConfigProvider, Context, Effect, Layer, Option } from "effect"
 import { ConfigService } from "@/effect/config-service"
 
-const bool = (name: string) => Config.boolean(name).pipe(Config.withDefault(false))
+const alias = (name: string) => (name.startsWith("OPENCODE_") ? `FANG_${name.slice("OPENCODE_".length)}` : name)
+const optionalBool = (name: string) =>
+  Config.all({
+    fang: Config.boolean(alias(name)).pipe(Config.option),
+    open: Config.boolean(name).pipe(Config.option),
+  }).pipe(Config.map((cfg) => (Option.isSome(cfg.fang) ? cfg.fang : cfg.open)))
+const optionalNumber = (name: string) =>
+  Config.all({
+    fang: Config.number(alias(name)).pipe(Config.option),
+    open: Config.number(name).pipe(Config.option),
+  }).pipe(Config.map((cfg) => (Option.isSome(cfg.fang) ? cfg.fang : cfg.open)))
+const optionalString = (name: string) =>
+  Config.all({
+    fang: Config.string(alias(name)).pipe(Config.option),
+    open: Config.string(name).pipe(Config.option),
+  }).pipe(Config.map((cfg) => (Option.isSome(cfg.fang) ? cfg.fang : cfg.open)))
+const bool = (name: string) => optionalBool(name).pipe(Config.map((value) => Option.getOrElse(value, () => false)))
 const positiveInteger = (name: string) =>
-  Config.number(name).pipe(
-    Config.map((value) => (Number.isInteger(value) && value > 0 ? value : undefined)),
+  optionalNumber(name).pipe(
+    Config.map((value) => Option.getOrUndefined(value)),
+    Config.map((value) => (value !== undefined && Number.isInteger(value) && value > 0 ? value : undefined)),
     Config.orElse(() => Config.succeed(undefined)),
   )
 const experimental = bool("OPENCODE_EXPERIMENTAL")
+const offline = Config.all({
+  mode: optionalString("OPENCODE_SOURCE_MODE"),
+  flag: bool("OPENCODE_OFFLINE"),
+}).pipe(Config.map((cfg) => cfg.flag || Option.getOrUndefined(cfg.mode) === "offline"))
 const enabledByExperimental = (name: string) =>
-  Config.all({ experimental, enabled: Config.boolean(name).pipe(Config.option) }).pipe(
+  Config.all({ experimental, enabled: optionalBool(name) }).pipe(
     Config.map((flags) => Option.getOrElse(flags.enabled, () => flags.experimental)),
   )
 
@@ -19,7 +40,9 @@ export class Service extends ConfigService.Service<Service>()("@opencode/Runtime
   disableDefaultPlugins: bool("OPENCODE_DISABLE_DEFAULT_PLUGINS"),
   disableEmbeddedWebUi: bool("OPENCODE_DISABLE_EMBEDDED_WEB_UI"),
   disableExternalSkills: bool("OPENCODE_DISABLE_EXTERNAL_SKILLS"),
-  disableLspDownload: bool("OPENCODE_DISABLE_LSP_DOWNLOAD"),
+  disableLspDownload: Config.all({ offline, disabled: bool("OPENCODE_DISABLE_LSP_DOWNLOAD") }).pipe(
+    Config.map((cfg) => cfg.offline || cfg.disabled),
+  ),
   disableClaudeCodePrompt: Config.all({
     broad: bool("OPENCODE_DISABLE_CLAUDE_CODE"),
     direct: bool("OPENCODE_DISABLE_CLAUDE_CODE_PROMPT"),
@@ -53,7 +76,7 @@ export class Service extends ConfigService.Service<Service>()("@opencode/Runtime
   bashDefaultTimeoutMs: positiveInteger("OPENCODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS"),
   experimentalNativeLlm: bool("OPENCODE_EXPERIMENTAL_NATIVE_LLM"),
   experimentalWebSockets: bool("OPENCODE_EXPERIMENTAL_WEBSOCKETS"),
-  client: Config.string("OPENCODE_CLIENT").pipe(Config.withDefault("cli")),
+  client: optionalString("OPENCODE_CLIENT").pipe(Config.map((value) => Option.getOrElse(value, () => "cli"))),
 }) {}
 
 export type Info = Context.Service.Shape<typeof Service>

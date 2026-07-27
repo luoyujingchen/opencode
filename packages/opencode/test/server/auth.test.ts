@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { Option, Redacted } from "effect"
+import { ConfigProvider, Effect, Option, Redacted } from "effect"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import { ServerAuth } from "../../src/server/auth"
 
@@ -55,5 +55,28 @@ describe("ServerAuth", () => {
     expect(ServerAuth.required(config)).toBe(true)
     expect(ServerAuth.authorized({ username: "alice", password: Redacted.make("secret") }, config)).toBe(true)
     expect(ServerAuth.authorized({ username: "opencode", password: Redacted.make("secret") }, config)).toBe(false)
+  })
+
+  test("prefers FangCode effect config aliases", async () => {
+    const config = await Effect.runPromise(
+      Effect.gen(function* () {
+        return yield* ServerAuth.Config
+      }).pipe(
+        Effect.provide(ServerAuth.Config.defaultLayer),
+        Effect.provide(
+          ConfigProvider.layer(
+            ConfigProvider.fromUnknown({
+              FANG_SERVER_PASSWORD: "fang-secret",
+              FANG_SERVER_USERNAME: "fang",
+              OPENCODE_SERVER_PASSWORD: "open-secret",
+              OPENCODE_SERVER_USERNAME: "open",
+            }),
+          ),
+        ),
+      ),
+    )
+
+    expect(config.password).toEqual(Option.some("fang-secret"))
+    expect(config.username).toBe("fang")
   })
 })

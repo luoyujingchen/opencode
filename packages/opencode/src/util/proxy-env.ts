@@ -1,5 +1,5 @@
 /*
- * Adapted from proxy-from-env: https://github.com/Rob--W/proxy-from-env
+ * Adapted from proxy-from-env.
  *
  * The MIT License
  *

@@ -14,9 +14,20 @@ export type DecodedCredentials = {
   readonly password: Redacted.Redacted
 }
 
+function opt(key: string) {
+  return EffectConfig.all({
+    fang: EffectConfig.string(`FANG_${key}`).pipe(EffectConfig.option),
+    open: EffectConfig.string(`OPENCODE_${key}`).pipe(EffectConfig.option),
+  }).pipe(EffectConfig.map((cfg) => (Option.isSome(cfg.fang) ? cfg.fang : cfg.open)))
+}
+
+function text(key: string, fallback: string) {
+  return opt(key).pipe(EffectConfig.map((value) => Option.getOrElse(value, () => fallback)))
+}
+
 export class Config extends ConfigService.Service<Config>()("@opencode/ServerAuthConfig", {
-  password: EffectConfig.string("OPENCODE_SERVER_PASSWORD").pipe(EffectConfig.option),
-  username: EffectConfig.string("OPENCODE_SERVER_USERNAME").pipe(EffectConfig.withDefault("opencode")),
+  password: opt("SERVER_PASSWORD"),
+  username: text("SERVER_USERNAME", "opencode"),
 }) {}
 
 export type Info = Context.Service.Shape<typeof Config>
