@@ -1,25 +1,7 @@
 import { describe, expect, test } from "bun:test"
 
-const appLocales = [
-  "ar",
-  "br",
-  "bs",
-  "da",
-  "de",
-  "es",
-  "fr",
-  "ja",
-  "ko",
-  "no",
-  "pl",
-  "ru",
-  "uk",
-  "th",
-  "tr",
-  "zh",
-  "zht",
-] as const
-const desktopLocales = appLocales.filter((locale) => locale !== "th" && locale !== "tr")
+const appLocales = ["zh"] as const
+const desktopLocales = appLocales
 
 const domains = [
   {
@@ -43,7 +25,7 @@ const domains = [
 ] as const
 
 describe.skipIf(!!process.env.CI)("i18n parity", () => {
-  test("non-English locales have every English key", async () => {
+  test("supported non-English locales have every English key", async () => {
     for (const domain of domains) {
       const source = await dictionary(domain.source)
       for (const locale of domain.locales) {
@@ -60,7 +42,7 @@ describe.skipIf(!!process.env.CI)("i18n parity", () => {
     }
   })
 
-  test("non-English locales preserve English placeholders", async () => {
+  test("supported non-English locales preserve English placeholders", async () => {
     for (const domain of domains) {
       const source = await dictionary(domain.source)
       for (const locale of domain.locales) {
@@ -73,7 +55,7 @@ describe.skipIf(!!process.env.CI)("i18n parity", () => {
     }
   })
 
-  test("non-English locales translate targeted unseen session keys", async () => {
+  test("supported non-English locales translate targeted unseen session keys", async () => {
     const source = await dictionary("./en.ts")
     for (const locale of appLocales) {
       const target = await dictionary(`./${locale}.ts`)
