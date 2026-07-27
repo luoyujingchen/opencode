@@ -6,6 +6,7 @@ import type { Accessor } from "solid-js"
 import { selectProviderCatalog } from "./provider-catalog"
 
 export const popularProviders = [
+  "fangcode",
   "opencode",
   "opencode-go",
   "anthropic",

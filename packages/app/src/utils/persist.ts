@@ -24,9 +24,9 @@ type PersistTarget = {
 }
 
 const LEGACY_STORAGE = "default.dat"
-const GLOBAL_STORAGE = "opencode.global.dat"
-const WINDOW_STORAGE = "opencode.window"
-const LOCAL_PREFIX = "opencode."
+const GLOBAL_STORAGE = "fangcode.global.dat"
+const WINDOW_STORAGE = "fangcode.window"
+const LOCAL_PREFIX = "fangcode."
 const fallback = new Map<string, boolean>()
 
 const CACHE_MAX_ENTRIES = 500
@@ -340,7 +340,7 @@ async function migrateLegacyAsync(input: {
 function workspaceStorage(dir: string) {
   const head = (dir.slice(0, 12) || "workspace").replace(/[^a-zA-Z0-9._-]/g, "-")
   const sum = checksum(dir) ?? "0"
-  return `opencode.workspace.${head}.${sum}.dat`
+  return `fangcode.workspace.${head}.${sum}.dat`
 }
 
 function draftStorage(draftID: string) {

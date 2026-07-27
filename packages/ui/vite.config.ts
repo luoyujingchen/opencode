@@ -2,6 +2,7 @@ import { defineConfig } from "vite"
 import solidPlugin from "vite-plugin-solid"
 import { iconsSpritesheet } from "vite-plugin-icons-spritesheet"
 import fs from "fs"
+import { Source } from "@opencode-ai/core/source"
 
 export default defineConfig({
   plugins: [
@@ -45,13 +46,18 @@ function providerIconsPlugin() {
 }
 
 async function fetchProviderIcons() {
-  const url = process.env.OPENCODE_MODELS_URL || "https://models.dev"
-  const providers = await fetch(`${url}/api.json`)
-    .then((res) => res.json())
-    .then((json) => Object.keys(json))
+  if (Source.offline() && !Source.modelsPath()) return
+  const providers = await (async () => {
+    const file = Source.modelsPath()
+    if (file) return Bun.file(file).json().then((json) => Object.keys(json as Record<string, unknown>))
+    return fetch(Source.modelsUrl("api.json"))
+      .then((res) => res.json())
+      .then((json) => Object.keys(json as Record<string, unknown>))
+  })()
+  if (Source.modelsPath()) return
   await Promise.all(
     providers.map((provider) =>
-      fetch(`${url}/logos/${provider}.svg`)
+      fetch(Source.modelsUrl(`logos/${provider}.svg`))
         .then((res) => res.text())
         .then((svg) => fs.writeFileSync(`./src/assets/icons/provider/${provider}.svg`, svg)),
     ),
